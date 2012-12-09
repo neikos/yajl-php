@@ -108,6 +108,22 @@ PHP_MINIT_FUNCTION(yajl)
 
     le_yajl_parser = zend_register_list_destructors_ex(yajl_parser_dtor, NULL, 
                                                        "yajl parser", module_number);
+
+    REGISTER_LONG_CONSTANT("YAJL_ALLOW_COMMENTS", yajl_allow_comments,
+                                CONST_CS | CONST_PERSISTENT);
+
+    REGISTER_LONG_CONSTANT("YAJL_DONT_VALIDATE_STRINGS", yajl_dont_validate_strings,
+                                CONST_CS | CONST_PERSISTENT);
+
+    REGISTER_LONG_CONSTANT("YAJL_ALLOW_TRAILING_GARBAGE", yajl_allow_trailing_garbage,
+                                CONST_CS | CONST_PERSISTENT);
+
+    REGISTER_LONG_CONSTANT("YAJL_ALLOW_MULTIPLE_VALUES", yajl_allow_multiple_values,
+                                CONST_CS | CONST_PERSISTENT);
+
+    REGISTER_LONG_CONSTANT("YAJL_ALLOW_PARTIAL_VALUES", yajl_allow_partial_values,
+                                CONST_CS | CONST_PERSISTENT);
+
 	return SUCCESS;
 }
 /* }}} */
@@ -155,6 +171,8 @@ PHP_MINFO_FUNCTION(yajl)
 }
 /* }}} */
 
+/* Going to use PHP's volatile alloc functions for the yajl parser.
+ */
 static void * yajl_internal_malloc(void *ctx, size_t sz)
 {
     return emalloc(sz);
@@ -171,12 +189,76 @@ static void yajl_internal_free(void *ctx, void * ptr)
     efree(ptr);
 }
 
-yajl_alloc_funcs yaf = 
+/* Not going to use ctx. Set it to NULL.
+ */
+static yajl_alloc_funcs alloc_funcs = 
 {
     .malloc = yajl_internal_malloc,
     .realloc = yajl_internal_realloc,
     .free = yajl_internal_free,
     .ctx = NULL
+};
+
+/* Now craft the callbacks such that they call user-supplied PHP functions.
+ */
+static int yajl_null(void *ctx)
+{
+    return yajl_status_ok;
+}
+
+static int yajl_boolean(void *ctx, int boolVal)
+{
+    return yajl_status_ok;
+}
+
+static int yajl_number(void *ctx, const char *numberVal, size_t numberLen)
+{
+    return yajl_status_ok;
+}
+
+static int yajl_string(void *ctx, const unsigned char *stringVal, size_t stringLen)
+{
+    return yajl_status_ok;
+}
+
+static int yajl_start_map(void *ctx)
+{
+    return yajl_status_ok;
+}
+
+static int yajl_map_key(void *ctx, const unsigned char * key, size_t stringLen)
+{
+    return yajl_status_ok;
+}
+
+static int yajl_end_map(void *ctx)
+{
+    return yajl_status_ok;
+}
+
+static int yajl_start_array(void *ctx)
+{
+    return yajl_status_ok;
+}
+
+static int yajl_end_array(void *ctx)
+{
+    return yajl_status_ok;
+}
+
+static yajl_callbacks callbacks =
+{
+    .yajl_null = yajl_null,
+    .yajl_boolean = yajl_boolean,
+    .yajl_integer = NULL,
+    .yajl_double = NULL,
+    .yajl_number = yajl_number,
+    .yajl_string = yajl_string,
+    .yajl_start_map = yajl_start_map,
+    .yajl_map_key = yajl_map_key,
+    .yajl_end_map = yajl_end_map,
+    .yajl_start_array = yajl_start_array,
+    .yajl_end_array = yajl_end_array
 };
 
 /* Remove the following function when you have succesfully modified config.m4
@@ -198,6 +280,53 @@ PHP_FUNCTION(confirm_yajl_compiled)
 
 	len = spprintf(&strg, 0, "Congratulations! You have successfully modified ext/%.78s/config.m4. Module %.78s is now compiled into PHP.", "yajl", arg);
 	RETURN_STRINGL(strg, len, 0);
+}
+
+/* {{{ proto int yajl_parser_set_option(resource parser, int option, int value) 
+   Set options in an yajl parser */
+PHP_FUNCTION(yajl_parser_set_option)
+{
+    yajl_handle hand;
+    zval *parser_resource_id, **val;
+    long opt;
+    
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rll",
+                                &parser_resource_id, &opt, &val) == FAILURE)
+    {
+        return;
+    }
+
+    ZEND_FETCH_RESOURCE(hand, yajl_handle, &parser_resource_id,
+                            -1, "yajl parser", le_yajl_parser);
+
+    switch(opt)
+    {
+        case yajl_allow_comments:
+            break;
+        case yajl_dont_validate_strings:
+            break;
+        case yajl_allow_trailing_garbage:
+            break;
+        case yajl_allow_multiple_values:
+            break;
+        case yajl_allow_partial_values:
+            break;
+        default:
+            php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unknown option");
+            RETURN_FALSE;
+            break;
+    }
+
+    if ( yajl_config(hand, opt, Z_LVAL_PP(val)) == 0 )
+    {
+        php_error_docref(NULL TSRMLS_CC, E_WARNING,
+            "Could not set yajl parser config option %lx to value %ld",
+                                                        opt, Z_LVAL_PP(val));
+
+        RETURN_FALSE;
+    }
+
+    RETVAL_TRUE;
 }
 /* }}} */
 /* The previous line is meant for vim and emacs, so it can correctly fold and 
