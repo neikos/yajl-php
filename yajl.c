@@ -27,12 +27,14 @@
 #include "ext/standard/info.h"
 #include "php_yajl.h"
 
+#include <yajl/yajl_parse.h>
+
 /* If you declare any globals in php_yajl.h uncomment this:
 ZEND_DECLARE_MODULE_GLOBALS(yajl)
 */
 
 /* True global resources - no need for thread safety here */
-static int le_yajl;
+static int le_yajl_parser;
 
 /* {{{ yajl_functions[]
  *
@@ -89,6 +91,13 @@ static void php_yajl_init_globals(zend_yajl_globals *yajl_globals)
 */
 /* }}} */
 
+static void php_yajl_parser_dtor(zend_rsrc_list_entry *rsrc TSRMLS_DC)
+{
+    yajl_handle hand = (yajl_handle)rsrc->ptr;
+
+    yajl_free(hand);
+}
+
 /* {{{ PHP_MINIT_FUNCTION
  */
 PHP_MINIT_FUNCTION(yajl)
@@ -96,6 +105,9 @@ PHP_MINIT_FUNCTION(yajl)
 	/* If you have INI entries, uncomment these lines 
 	REGISTER_INI_ENTRIES();
 	*/
+
+    le_yajl_parser = zend_register_list_destructors_ex(php_yajl_parser_dtor, NULL, 
+                                                       "yajl parser", module_number);
 	return SUCCESS;
 }
 /* }}} */
