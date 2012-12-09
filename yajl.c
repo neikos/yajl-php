@@ -91,7 +91,7 @@ static void php_yajl_init_globals(zend_yajl_globals *yajl_globals)
 */
 /* }}} */
 
-static void php_yajl_parser_dtor(zend_rsrc_list_entry *rsrc TSRMLS_DC)
+static void yajl_parser_dtor(zend_rsrc_list_entry *rsrc TSRMLS_DC)
 {
     yajl_handle hand = (yajl_handle)rsrc->ptr;
 
@@ -106,7 +106,7 @@ PHP_MINIT_FUNCTION(yajl)
 	REGISTER_INI_ENTRIES();
 	*/
 
-    le_yajl_parser = zend_register_list_destructors_ex(php_yajl_parser_dtor, NULL, 
+    le_yajl_parser = zend_register_list_destructors_ex(yajl_parser_dtor, NULL, 
                                                        "yajl parser", module_number);
 	return SUCCESS;
 }
@@ -155,6 +155,29 @@ PHP_MINFO_FUNCTION(yajl)
 }
 /* }}} */
 
+static void * yajl_internal_malloc(void *ctx, size_t sz)
+{
+    return emalloc(sz);
+}
+
+static void * yajl_internal_realloc(void *ctx, void * previous,
+                                    size_t sz)
+{
+    return erealloc(previous, sz);
+}
+
+static void yajl_internal_free(void *ctx, void * ptr)
+{
+    efree(ptr);
+}
+
+yajl_alloc_funcs yaf = 
+{
+    .malloc = yajl_internal_malloc,
+    .realloc = yajl_internal_realloc,
+    .free = yajl_internal_free,
+    .ctx = NULL
+};
 
 /* Remove the following function when you have succesfully modified config.m4
    so that your module can be compiled into PHP, it exists only for testing
