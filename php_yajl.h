@@ -43,6 +43,8 @@ PHP_RSHUTDOWN_FUNCTION(yajl);
 PHP_MINFO_FUNCTION(yajl);
 
 PHP_FUNCTION(confirm_yajl_compiled);	/* For testing, remove later. */
+PHP_FUNCTION(yajl_parser_create);
+PHP_FUNCTION(yajl_parser_set_option);
 
 /* 
   	Declare any global variables you may need between the BEGIN

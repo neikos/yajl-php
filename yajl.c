@@ -36,12 +36,23 @@ ZEND_DECLARE_MODULE_GLOBALS(yajl)
 /* True global resources - no need for thread safety here */
 static int le_yajl_parser;
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_yajl_parser_create, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_yajl_parser_set_option, 0, 0, 2)
+    ZEND_ARG_INFO(0, parser)
+    ZEND_ARG_INFO(0, option)
+    ZEND_ARG_INFO(0, value)
+ZEND_END_ARG_INFO()
+
 /* {{{ yajl_functions[]
  *
  * Every user visible function must have an entry in yajl_functions[].
  */
 const zend_function_entry yajl_functions[] = {
 	PHP_FE(confirm_yajl_compiled,	NULL)		/* For testing, remove later. */
+	PHP_FE(yajl_parser_create,	arginfo_yajl_parser_create)
+	PHP_FE(yajl_parser_set_option,	arginfo_yajl_parser_set_option)
 	PHP_FE_END	/* Must be the last line in yajl_functions[] */
 };
 /* }}} */
@@ -281,6 +292,18 @@ PHP_FUNCTION(confirm_yajl_compiled)
 	len = spprintf(&strg, 0, "Congratulations! You have successfully modified ext/%.78s/config.m4. Module %.78s is now compiled into PHP.", "yajl", arg);
 	RETURN_STRINGL(strg, len, 0);
 }
+
+/* {{{ proto int yajl_parser_create() 
+   Creates a yajl parser resource */
+PHP_FUNCTION(yajl_parser_create)
+{
+    yajl_handle hand;
+
+    hand = yajl_alloc(&callbacks, &alloc_funcs, NULL); /* NULL for ctx. Not using it. */
+
+    ZEND_REGISTER_RESOURCE(return_value, hand, le_yajl_parser);
+}
+/* }}} */
 
 /* {{{ proto int yajl_parser_set_option(resource parser, int option, int value) 
    Set options in an yajl parser */
