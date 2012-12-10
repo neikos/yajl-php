@@ -27,8 +27,6 @@
 #include "ext/standard/info.h"
 #include "php_yajl.h"
 
-#include <yajl/yajl_parse.h>
-
 /* If you declare any globals in php_yajl.h uncomment this:
 ZEND_DECLARE_MODULE_GLOBALS(yajl)
 */
@@ -102,12 +100,69 @@ static void php_yajl_init_globals(zend_yajl_globals *yajl_globals)
 */
 /* }}} */
 
+/* {{{ yajl_parser_dtor() */
 static void yajl_parser_dtor(zend_rsrc_list_entry *rsrc TSRMLS_DC)
 {
-    yajl_handle hand = (yajl_handle)rsrc->ptr;
+    yajl_parser *parser = (yajl_parser *)rsrc->ptr;
 
-    yajl_free(hand);
+    if ( parser->yajl_handle )
+    {
+        yajl_free(parser->yajl_handle);
+    }
+
+    if ( parser->nullHandler )
+	{
+		zval_ptr_dtor(&parser->nullHandler);
+	}
+
+    if ( parser->booleanHandler )
+	{
+		zval_ptr_dtor(&parser->booleanHandler);
+	}
+
+    if ( parser->numberHandler )
+	{
+		zval_ptr_dtor(&parser->numberHandler);
+	}
+
+    if ( parser->stringHandler )
+	{
+		zval_ptr_dtor(&parser->stringHandler);
+	}
+
+    if ( parser->startMapHandler )
+	{
+		zval_ptr_dtor(&parser->startMapHandler);
+	}
+
+    if ( parser->mapKeyHandler )
+	{
+		zval_ptr_dtor(&parser->mapKeyHandler);
+	}
+
+    if ( parser->endMapHandler )
+	{
+		zval_ptr_dtor(&parser->endMapHandler);
+	}
+
+    if ( parser->startArrayHandler )
+	{
+		zval_ptr_dtor(&parser->startArrayHandler);
+	}
+
+    if ( parser->endArrayHandler )
+	{
+		zval_ptr_dtor(&parser->endArrayHandler);
+	}
+
+    if ( parser->object )
+	{
+		zval_ptr_dtor(&parser->object);
+	}
+
+    efree(parser);
 }
+/* }}} */
 
 /* {{{ PHP_MINIT_FUNCTION
  */
@@ -182,7 +237,8 @@ PHP_MINFO_FUNCTION(yajl)
 }
 /* }}} */
 
-/* Going to use PHP's volatile alloc functions for the yajl parser.
+/* Going to use PHP's volatile alloc functions for the yajl parser */
+/* {{{ Setting yajl's alloc functions
  */
 static void * yajl_internal_malloc(void *ctx, size_t sz)
 {
@@ -209,8 +265,10 @@ static yajl_alloc_funcs alloc_funcs =
     .free = yajl_internal_free,
     .ctx = NULL
 };
+/* }}} */
 
-/* Now craft the callbacks such that they call user-supplied PHP functions.
+/* Now craft the callbacks such that they call user-supplied PHP functions */
+/* {{{ Setting yajl's callback functions
  */
 static int yajl_null(void *ctx)
 {
@@ -271,6 +329,120 @@ static yajl_callbacks callbacks =
     .yajl_start_array = yajl_start_array,
     .yajl_end_array = yajl_end_array
 };
+/* }}} */
+
+/* {{{ yajl_set_handler() */
+static void yajl_set_handler(zval **handler, zval **data)
+{
+    /* Release any original handler */
+    if ( *handler )
+    {
+        zval_ptr_dtor(handler);
+    }
+
+    /* data could point to an array of array($obj,'method') */
+    if (Z_TYPE_PP(data) != IS_ARRAY && Z_TYPE_PP(data) != IS_OBJECT)
+    {
+        convert_to_string_ex(data);
+
+        if (Z_STRLEN_PP(data) == 0)
+        {
+            *handler = NULL;
+            return;
+        }
+    }
+
+    zval_add_ref(data);
+
+    *handler = *data;
+}
+/* }}} */
+
+/* {{{ yajl_call_handler() */
+static zval *yajl_call_handler(yajl_parser *parser, zval *handler,int argc, zval **argv)
+{
+    int i, result;
+    zval ***args;
+    zval *retval;
+    zend_fcall_info fci;
+    zval **method;
+    zval **obj;
+
+    TSRMLS_FETCH();
+
+    if ( parser && handler && ! EG(exception) )
+    {
+        args = safe_emalloc(sizeof(zval **), argc, 0);
+    
+        for (i = 0; i < argc; i++)
+        {
+            args[i] = &argv[i];
+        }
+    
+        fci.size = sizeof(fci);
+        fci.function_table = EG(function_table);
+        fci.function_name = handler;
+        fci.symbol_table = NULL;
+        fci.object_ptr = parser->object;
+        fci.retval_ptr_ptr = &retval;
+        fci.param_count = argc;
+        fci.params = args;
+        fci.no_separation = 0;
+
+        result = zend_call_function(&fci, NULL TSRMLS_CC);
+
+        if (result == FAILURE)
+        {
+            if (Z_TYPE_P(handler) == IS_STRING)
+            {
+                php_error_docref(NULL TSRMLS_CC, E_WARNING,
+                    "Unable to call handler %s()", Z_STRVAL_P(handler));
+            }
+            else if ( zend_hash_index_find(Z_ARRVAL_P(handler), 0, (void **) &obj)
+                        == SUCCESS
+                     &&
+                      zend_hash_index_find(Z_ARRVAL_P(handler), 1, (void **) &method)
+                        == SUCCESS
+                     &&
+                      Z_TYPE_PP(obj) == IS_OBJECT && Z_TYPE_PP(method) == IS_STRING )
+            {
+                php_error_docref(NULL TSRMLS_CC, E_WARNING,
+                                 "Unable to call handler %s::%s()",
+                                 Z_OBJCE_PP(obj)->name, Z_STRVAL_PP(method));
+            }
+            else
+            {
+                php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unable to call handler");
+            }
+        }
+
+        for (i = 0; i < argc; i++)
+        {
+            zval_ptr_dtor(args[i]);
+        }
+
+        efree(args);
+
+        if (result == FAILURE)
+        {
+            return NULL;
+        }
+        else
+        {
+            return EG(exception) ? NULL : retval;
+        }
+    }
+    else
+    {
+        for (i = 0; i < argc; i++)
+        {
+            zval_ptr_dtor(&argv[i]);
+        }
+
+        return NULL;
+    }
+}
+/* }}} */
 
 /* Remove the following function when you have succesfully modified config.m4
    so that your module can be compiled into PHP, it exists only for testing
@@ -297,11 +469,15 @@ PHP_FUNCTION(confirm_yajl_compiled)
    Creates a yajl parser resource */
 PHP_FUNCTION(yajl_parser_create)
 {
-    yajl_handle hand;
+    yajl_parser *parser;
 
-    hand = yajl_alloc(&callbacks, &alloc_funcs, NULL); /* NULL for ctx. Not using it. */
+    parser = ecalloc(1, sizeof(yajl_parser));
+    parser->yajl_handle = yajl_alloc(&callbacks, &alloc_funcs, parser);
+                                                                    
+    parser->object = NULL;
 
-    ZEND_REGISTER_RESOURCE(return_value, hand, le_yajl_parser);
+    ZEND_REGISTER_RESOURCE(return_value, parser, le_yajl_parser);
+    parser->index = Z_LVAL_P(return_value);
 }
 /* }}} */
 
@@ -309,17 +485,17 @@ PHP_FUNCTION(yajl_parser_create)
    Set options in an yajl parser */
 PHP_FUNCTION(yajl_parser_set_option)
 {
-    yajl_handle hand;
-    zval *parser_resource_id, **val;
+    yajl_parser *parser;
+    zval *parser_index, **val;
     long opt;
     
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rll",
-                                &parser_resource_id, &opt, &val) == FAILURE)
+                                &parser_index, &opt, &val) == FAILURE)
     {
         return;
     }
 
-    ZEND_FETCH_RESOURCE(hand, yajl_handle, &parser_resource_id,
+    ZEND_FETCH_RESOURCE(parser, yajl_parser *, &parser_index,
                             -1, "yajl parser", le_yajl_parser);
 
     switch(opt)
@@ -340,7 +516,7 @@ PHP_FUNCTION(yajl_parser_set_option)
             break;
     }
 
-    if ( yajl_config(hand, opt, Z_LVAL_PP(val)) == 0 )
+    if ( yajl_config(parser->yajl_handle, opt, Z_LVAL_PP(val)) == 0 )
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING,
             "Could not set yajl parser config option %lx to value %ld",
