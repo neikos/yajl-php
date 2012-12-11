@@ -27,6 +27,10 @@
 #include "ext/standard/info.h"
 #include "php_yajl.h"
 
+/* {{{ prototypes for forward declarations */
+static zval *yajl_call_handler(yajl_parser *, zval *, int, zval **);
+/* }}} */
+
 /* If you declare any globals in php_yajl.h uncomment this:
 ZEND_DECLARE_MODULE_GLOBALS(yajl)
 */
@@ -43,6 +47,15 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_yajl_parser_set_option, 0, 0, 2)
     ZEND_ARG_INFO(0, value)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_yajl_parser_set_object, 0, 0, 2)
+    ZEND_ARG_INFO(0, parser)
+    ZEND_ARG_INFO(1, obj)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_yajl_set_null_handler, 0, 0, 1)
+    ZEND_ARG_INFO(0, parser)
+ZEND_END_ARG_INFO()
+
 /* {{{ yajl_functions[]
  *
  * Every user visible function must have an entry in yajl_functions[].
@@ -51,6 +64,8 @@ const zend_function_entry yajl_functions[] = {
 	PHP_FE(confirm_yajl_compiled,	NULL)		/* For testing, remove later. */
 	PHP_FE(yajl_parser_create,	arginfo_yajl_parser_create)
 	PHP_FE(yajl_parser_set_option,	arginfo_yajl_parser_set_option)
+	PHP_FE(yajl_parser_set_object,	arginfo_yajl_parser_set_object)
+	PHP_FE(yajl_set_null_handler,	arginfo_yajl_set_null_handler)
 	PHP_FE_END	/* Must be the last line in yajl_functions[] */
 };
 /* }}} */
@@ -237,6 +252,31 @@ PHP_MINFO_FUNCTION(yajl)
 }
 /* }}} */
 
+/* {{{ extension convenience functions */
+static zval *create_resource_zval(long value)
+{
+    zval *ret;
+    TSRMLS_FETCH();
+
+    MAKE_STD_ZVAL(ret);
+    ZVAL_RESOURCE(ret,value);
+
+    zend_list_addref(value);
+
+    return ret;
+}
+
+static zval *create_null_zval()
+{
+    zval *ret;
+
+    MAKE_STD_ZVAL(ret);
+    ZVAL_NULL(ret);
+
+    return ret;
+}
+/* }}} */
+
 /* Going to use PHP's volatile alloc functions for the yajl parser */
 /* {{{ Setting yajl's alloc functions
  */
@@ -272,6 +312,22 @@ static yajl_alloc_funcs alloc_funcs =
  */
 static int yajl_null(void *ctx)
 {
+    yajl_parser *parser = (yajl_parser *)ctx;
+    zval *retval, *args[1];
+
+    if ( parser )
+    {
+        if ( parser->nullHandler )
+        {
+            args[0] = create_resource_zval(parser->index);
+
+            if ((retval = yajl_call_handler(parser, parser->nullHandler,1, args)))
+            {
+                zval_ptr_dtor(&retval);
+            }
+        }
+    }
+
     return yajl_status_ok;
 }
 
@@ -528,6 +584,57 @@ PHP_FUNCTION(yajl_parser_set_option)
     RETVAL_TRUE;
 }
 /* }}} */
+
+/* {{{ proto int yajl_parser_set_object(resource parser, object &obj) 
+   Set an object that will have the callbacks as methods */
+PHP_FUNCTION(yajl_parser_set_object)
+{
+    yajl_parser *parser;
+    zval *parser_index, *mythis;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ro", &parser_index, &mythis)
+            == FAILURE)
+    {
+        return;
+    }
+
+    ZEND_FETCH_RESOURCE(parser, yajl_parser *, &parser_index,
+                            -1, "yajl parser", le_yajl_parser);
+
+    if ( parser->object )
+    {
+        zval_ptr_dtor(&parser->object);
+    }
+
+    ALLOC_ZVAL(parser->object);
+    MAKE_COPY_ZVAL(&mythis, parser->object);
+
+    RETVAL_TRUE;
+}
+/* }}} */
+
+/* {{{ proto int yajl_set_null_handler(resource parser) 
+   Set a handler to be called when a json 'null' is parsed */
+PHP_FUNCTION(yajl_set_null_handler)
+{
+    yajl_parser *parser;
+    zval *parser_index, **nhdl;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rZ", &parser_index, &nhdl)
+            == FAILURE)
+    {
+        return;
+    }
+
+    ZEND_FETCH_RESOURCE(parser, yajl_parser *, &parser_index,
+                            -1, "yajl parser", le_yajl_parser);
+
+    yajl_set_handler(&parser->nullHandler, nhdl);
+
+    RETVAL_TRUE;
+}
+/* }}} */
+
 /* The previous line is meant for vim and emacs, so it can correctly fold and 
    unfold functions in source code. See the corresponding marks just before 
    function definition, where the functions purpose is also documented. Please 

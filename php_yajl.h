@@ -45,6 +45,8 @@ PHP_MINFO_FUNCTION(yajl);
 PHP_FUNCTION(confirm_yajl_compiled);	/* For testing, remove later. */
 PHP_FUNCTION(yajl_parser_create);
 PHP_FUNCTION(yajl_parser_set_option);
+PHP_FUNCTION(yajl_parser_set_object);
+PHP_FUNCTION(yajl_set_null_handler);
 
 /* 
   	Declare any global variables you may need between the BEGIN
