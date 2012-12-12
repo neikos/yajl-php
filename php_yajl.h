@@ -47,6 +47,8 @@ PHP_FUNCTION(yajl_parser_create);
 PHP_FUNCTION(yajl_parser_set_option);
 PHP_FUNCTION(yajl_parser_set_object);
 PHP_FUNCTION(yajl_set_null_handler);
+PHP_FUNCTION(yajl_parse);
+PHP_FUNCTION(yajl_parser_free);
 
 /* 
   	Declare any global variables you may need between the BEGIN
@@ -65,6 +67,10 @@ typedef struct
     int index;
 
     yajl_handle yajl_handle;
+
+    int yajl_status;
+
+    char *json_text;
 
     zval *nullHandler;
     zval *booleanHandler;

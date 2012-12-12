@@ -56,6 +56,16 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_yajl_set_null_handler, 0, 0, 1)
     ZEND_ARG_INFO(0, parser)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_yajl_parse, 0, 0, 2)
+    ZEND_ARG_INFO(0, parser)
+    ZEND_ARG_INFO(0, data)
+    ZEND_ARG_INFO(0, is_final)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_yajl_parser_free, 0, 0, 1)
+    ZEND_ARG_INFO(0, parser)
+ZEND_END_ARG_INFO()
+
 /* {{{ yajl_functions[]
  *
  * Every user visible function must have an entry in yajl_functions[].
@@ -66,6 +76,8 @@ const zend_function_entry yajl_functions[] = {
 	PHP_FE(yajl_parser_set_option,	arginfo_yajl_parser_set_option)
 	PHP_FE(yajl_parser_set_object,	arginfo_yajl_parser_set_object)
 	PHP_FE(yajl_set_null_handler,	arginfo_yajl_set_null_handler)
+	PHP_FE(yajl_parse,	arginfo_yajl_parse)
+	PHP_FE(yajl_parser_free,	arginfo_yajl_parser_free)
 	PHP_FE_END	/* Must be the last line in yajl_functions[] */
 };
 /* }}} */
@@ -115,14 +127,19 @@ static void php_yajl_init_globals(zend_yajl_globals *yajl_globals)
 */
 /* }}} */
 
-/* {{{ yajl_parser_dtor() */
-static void yajl_parser_dtor(zend_rsrc_list_entry *rsrc TSRMLS_DC)
+/* {{{ yajl_parser_rsrc_dtor() */
+static void yajl_parser_rsrc_dtor(zend_rsrc_list_entry *rsrc TSRMLS_DC)
 {
     yajl_parser *parser = (yajl_parser *)rsrc->ptr;
 
     if ( parser->yajl_handle )
     {
         yajl_free(parser->yajl_handle);
+    }
+
+    if ( parser->json_text )
+    {
+        efree(parser->json_text);
     }
 
     if ( parser->nullHandler )
@@ -187,7 +204,7 @@ PHP_MINIT_FUNCTION(yajl)
 	REGISTER_INI_ENTRIES();
 	*/
 
-    le_yajl_parser = zend_register_list_destructors_ex(yajl_parser_dtor, NULL, 
+    le_yajl_parser = zend_register_list_destructors_ex(yajl_parser_rsrc_dtor, NULL, 
                                                        "yajl parser", module_number);
 
     REGISTER_LONG_CONSTANT("YAJL_ALLOW_COMMENTS", yajl_allow_comments,
@@ -328,7 +345,7 @@ static int yajl_null(void *ctx)
         }
     }
 
-    return yajl_status_ok;
+    return 1;
 }
 
 static int yajl_boolean(void *ctx, int boolVal)
@@ -630,6 +647,66 @@ PHP_FUNCTION(yajl_set_null_handler)
                             -1, "yajl parser", le_yajl_parser);
 
     yajl_set_handler(&parser->nullHandler, nhdl);
+
+    RETVAL_TRUE;
+}
+/* }}} */
+
+/* {{{ proto int yajl_parse(resource parser, string data [, is_final]) 
+   Parse some JSON text */
+PHP_FUNCTION(yajl_parse)
+{
+    yajl_parser *parser;
+    zval *parser_index;
+    unsigned char *data;
+    int data_len;
+    zend_bool is_final = 0;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rs|b",
+        &parser_index, &data, &data_len, &is_final) == FAILURE)
+    {
+        return;
+    }
+
+    ZEND_FETCH_RESOURCE(parser, yajl_parser *, &parser_index,
+                            -1, "yajl parser", le_yajl_parser);
+
+    if ( parser->json_text ) efree(parser->json_text);
+
+    parser->yajl_status = yajl_status_ok;
+    parser->json_text = estrndup((const char *)data,data_len);
+
+    parser->yajl_status = yajl_parse(parser->yajl_handle, data, data_len);
+
+    if ( parser->yajl_status == yajl_status_ok && is_final ) 
+    {
+        parser->yajl_status = yajl_complete_parse(parser->yajl_handle);
+    } 
+
+    RETVAL_LONG(parser->yajl_status==yajl_status_ok?1:0);
+}
+/* }}} */
+
+/* {{{ proto int yajl_parser_free(resource parser) 
+   Free the JSON parser */
+
+PHP_FUNCTION(yajl_parser_free)
+{
+    zval *parser_index;
+    yajl_parser *parser;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r", &parser_index) == FAILURE)
+    {
+        return;
+    }
+
+    ZEND_FETCH_RESOURCE(parser, yajl_parser *, &parser_index,
+                            -1, "yajl parser", le_yajl_parser);
+
+    if (zend_list_delete(parser->index) == FAILURE)
+    {
+        RETURN_FALSE;
+    }
 
     RETVAL_TRUE;
 }
