@@ -66,6 +66,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_yajl_parser_free, 0, 0, 1)
     ZEND_ARG_INFO(0, parser)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_yajl_get_error, 0, 0, 1)
+    ZEND_ARG_INFO(0, parser)
+ZEND_END_ARG_INFO()
+
 /* {{{ yajl_functions[]
  *
  * Every user visible function must have an entry in yajl_functions[].
@@ -78,6 +82,7 @@ const zend_function_entry yajl_functions[] = {
 	PHP_FE(yajl_set_null_handler,	arginfo_yajl_set_null_handler)
 	PHP_FE(yajl_parse,	arginfo_yajl_parse)
 	PHP_FE(yajl_parser_free,	arginfo_yajl_parser_free)
+	PHP_FE(yajl_get_error,	arginfo_yajl_get_error)
 	PHP_FE_END	/* Must be the last line in yajl_functions[] */
 };
 /* }}} */
@@ -350,42 +355,42 @@ static int yajl_null(void *ctx)
 
 static int yajl_boolean(void *ctx, int boolVal)
 {
-    return yajl_status_ok;
+    return 1;
 }
 
 static int yajl_number(void *ctx, const char *numberVal, size_t numberLen)
 {
-    return yajl_status_ok;
+    return 1;
 }
 
 static int yajl_string(void *ctx, const unsigned char *stringVal, size_t stringLen)
 {
-    return yajl_status_ok;
+    return 1;
 }
 
 static int yajl_start_map(void *ctx)
 {
-    return yajl_status_ok;
+    return 1;
 }
 
 static int yajl_map_key(void *ctx, const unsigned char * key, size_t stringLen)
 {
-    return yajl_status_ok;
+    return 1;
 }
 
 static int yajl_end_map(void *ctx)
 {
-    return yajl_status_ok;
+    return 1;
 }
 
 static int yajl_start_array(void *ctx)
 {
-    return yajl_status_ok;
+    return 1;
 }
 
 static int yajl_end_array(void *ctx)
 {
-    return yajl_status_ok;
+    return 1;
 }
 
 static yajl_callbacks callbacks =
@@ -652,18 +657,19 @@ PHP_FUNCTION(yajl_set_null_handler)
 }
 /* }}} */
 
-/* {{{ proto int yajl_parse(resource parser, string data [, is_final]) 
+/* {{{ proto int yajl_parse(resource parser, string data [, is_final [, verbose_error] ]) 
    Parse some JSON text */
 PHP_FUNCTION(yajl_parse)
 {
     yajl_parser *parser;
     zval *parser_index;
-    unsigned char *data;
-    int data_len;
+    char *data;
+    size_t data_len;
     zend_bool is_final = 0;
+    zend_bool verbose_error = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rs|b",
-        &parser_index, &data, &data_len, &is_final) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rs|bb",
+        &parser_index, &data, &data_len, &is_final, &verbose_error) == FAILURE)
     {
         return;
     }
@@ -674,9 +680,13 @@ PHP_FUNCTION(yajl_parse)
     if ( parser->json_text ) efree(parser->json_text);
 
     parser->yajl_status = yajl_status_ok;
-    parser->json_text = estrndup((const char *)data,data_len);
 
-    parser->yajl_status = yajl_parse(parser->yajl_handle, data, data_len);
+    /* If a verbose error message is desired, hold onto the current json chunk.
+     */
+    if ( verbose_error ) parser->json_text = (unsigned char *)estrndup(data,data_len);
+
+    parser->yajl_status = yajl_parse(parser->yajl_handle,
+                                        (unsigned char *)data, data_len);
 
     if ( parser->yajl_status == yajl_status_ok && is_final ) 
     {
@@ -689,7 +699,6 @@ PHP_FUNCTION(yajl_parse)
 
 /* {{{ proto int yajl_parser_free(resource parser) 
    Free the JSON parser */
-
 PHP_FUNCTION(yajl_parser_free)
 {
     zval *parser_index;
@@ -709,6 +718,52 @@ PHP_FUNCTION(yajl_parser_free)
     }
 
     RETVAL_TRUE;
+}
+/* }}} */
+
+/* {{{ proto int yajl_get_error(resource parser) 
+   Free the JSON parser */
+PHP_FUNCTION(yajl_get_error)
+{
+    yajl_parser *parser;
+    zval *parser_index;
+    char *error_str;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r", &parser_index) == FAILURE)
+    {
+        return;
+    }
+
+    ZEND_FETCH_RESOURCE(parser, yajl_parser *, &parser_index,
+                            -1, "yajl parser", le_yajl_parser);
+
+    /* The string interpretation of 'yajl_status_ok' is more meaningful than
+     * yajl_get_error()'s 'unknown error'
+     */
+    if ( parser->yajl_status == yajl_status_ok )
+    {
+        error_str = (char *)yajl_status_to_string(parser->yajl_status);
+        RETVAL_STRING(error_str, 1);
+    }
+    else
+    {
+        if ( parser->json_text )
+        {
+            /* Indicates parser was created with verbose flag true. */
+            error_str = (char *)yajl_get_error(parser->yajl_handle, 1,
+                                parser->json_text, strlen((char *)parser->json_text));
+        }
+        else
+        {
+            error_str = (char *)yajl_get_error(parser->yajl_handle, 0, NULL, 0);
+        }
+
+        if ( error_str )
+        {
+            RETVAL_STRING(error_str, 1);
+            yajl_free_error(parser->yajl_handle, (unsigned char *)error_str);
+        }
+    }
 }
 /* }}} */
 
