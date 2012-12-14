@@ -56,6 +56,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_yajl_set_null_handler, 0, 0, 1)
     ZEND_ARG_INFO(0, parser)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_yajl_set_number_handler, 0, 0, 1)
+    ZEND_ARG_INFO(0, parser)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_yajl_parse, 0, 0, 2)
     ZEND_ARG_INFO(0, parser)
     ZEND_ARG_INFO(0, data)
@@ -80,6 +84,7 @@ const zend_function_entry yajl_functions[] = {
 	PHP_FE(yajl_parser_set_option,	arginfo_yajl_parser_set_option)
 	PHP_FE(yajl_parser_set_object,	arginfo_yajl_parser_set_object)
 	PHP_FE(yajl_set_null_handler,	arginfo_yajl_set_null_handler)
+	PHP_FE(yajl_set_number_handler,	arginfo_yajl_set_number_handler)
 	PHP_FE(yajl_parse,	arginfo_yajl_parse)
 	PHP_FE(yajl_parser_free,	arginfo_yajl_parser_free)
 	PHP_FE(yajl_get_error,	arginfo_yajl_get_error)
@@ -288,12 +293,54 @@ static zval *create_resource_zval(long value)
     return ret;
 }
 
-static zval *create_null_zval()
+static zval *create_bool_zval(int value)
 {
     zval *ret;
 
     MAKE_STD_ZVAL(ret);
-    ZVAL_NULL(ret);
+    ZVAL_BOOL(ret,value);
+
+    return ret;
+}
+
+static zval *create_long_zval(long value)
+{
+    zval *ret;
+
+    MAKE_STD_ZVAL(ret);
+    ZVAL_LONG(ret,value);
+
+    return ret;
+}
+
+static zval *create_double_zval(double value)
+{
+    zval *ret;
+
+    MAKE_STD_ZVAL(ret);
+    ZVAL_DOUBLE(ret,value);
+
+    return ret;
+}
+
+/*
+static zval *create_number_zval(const char *numberVal, size_t numberLen)
+{
+    zval *ret;
+
+    MAKE_STD_ZVAL(ret);
+    ZVAL_STRINGL(ret,numberVal,numberLen,true);
+
+    return ret;
+}
+*/
+
+static zval *create_string_zval(const char *stringVal, size_t stringLen)
+{
+    zval *ret;
+
+    MAKE_STD_ZVAL(ret);
+    ZVAL_STRINGL(ret,stringVal,stringLen,true);
 
     return ret;
 }
@@ -355,16 +402,90 @@ static int yajl_null(void *ctx)
 
 static int yajl_boolean(void *ctx, int boolVal)
 {
+    yajl_parser *parser = (yajl_parser *)ctx;
+    zval *retval, *args[2];
+
+    if ( parser )
+    {
+        if ( parser->booleanHandler )
+        {
+            args[0] = create_resource_zval(parser->index);
+            args[1] = create_bool_zval(boolVal);
+
+            if ((retval = yajl_call_handler(parser, parser->booleanHandler,2, args)))
+            {
+                zval_ptr_dtor(&retval);
+            }
+        }
+    }
+
     return 1;
 }
 
-static int yajl_number(void *ctx, const char *numberVal, size_t numberLen)
+/* XXX long long and long are different on 32 bit architectures */
+static int yajl_integer(void *ctx, long long integerVal)
 {
+    yajl_parser *parser = (yajl_parser *)ctx;
+    zval *retval, *args[2];
+
+    if ( parser )
+    {
+        if ( parser->numberHandler )
+        {
+            args[0] = create_resource_zval(parser->index);
+            args[1] = create_long_zval(integerVal);
+
+            if ((retval = yajl_call_handler(parser, parser->numberHandler,2, args)))
+            {
+                zval_ptr_dtor(&retval);
+            }
+        }
+    }
+
+    return 1;
+}
+
+static int yajl_double(void *ctx, double doubleVal)
+{
+    yajl_parser *parser = (yajl_parser *)ctx;
+    zval *retval, *args[2];
+
+    if ( parser )
+    {
+        if ( parser->numberHandler )
+        {
+            args[0] = create_resource_zval(parser->index);
+            args[1] = create_double_zval(doubleVal);
+
+            if ((retval = yajl_call_handler(parser, parser->numberHandler,2, args)))
+            {
+                zval_ptr_dtor(&retval);
+            }
+        }
+    }
+
     return 1;
 }
 
 static int yajl_string(void *ctx, const unsigned char *stringVal, size_t stringLen)
 {
+    yajl_parser *parser = (yajl_parser *)ctx;
+    zval *retval, *args[2];
+
+    if ( parser )
+    {
+        if ( parser->stringHandler )
+        {
+            args[0] = create_resource_zval(parser->index);
+            args[1] = create_string_zval((const char *)stringVal, stringLen);
+
+            if ((retval = yajl_call_handler(parser, parser->stringHandler,1, args)))
+            {
+                zval_ptr_dtor(&retval);
+            }
+        }
+    }
+
     return 1;
 }
 
@@ -373,7 +494,7 @@ static int yajl_start_map(void *ctx)
     return 1;
 }
 
-static int yajl_map_key(void *ctx, const unsigned char * key, size_t stringLen)
+static int yajl_map_key(void *ctx, const unsigned char * key, size_t keyLen)
 {
     return 1;
 }
@@ -397,9 +518,9 @@ static yajl_callbacks callbacks =
 {
     .yajl_null = yajl_null,
     .yajl_boolean = yajl_boolean,
-    .yajl_integer = NULL,
-    .yajl_double = NULL,
-    .yajl_number = yajl_number,
+    .yajl_integer = yajl_integer,
+    .yajl_double = yajl_double,
+    .yajl_number = NULL,
     .yajl_string = yajl_string,
     .yajl_start_map = yajl_start_map,
     .yajl_map_key = yajl_map_key,
@@ -652,6 +773,28 @@ PHP_FUNCTION(yajl_set_null_handler)
                             -1, "yajl parser", le_yajl_parser);
 
     yajl_set_handler(&parser->nullHandler, nhdl);
+
+    RETVAL_TRUE;
+}
+/* }}} */
+
+/* {{{ proto int yajl_set_number_handler(resource parser) 
+   Set a handler to be called when a json number is parsed */
+PHP_FUNCTION(yajl_set_number_handler)
+{
+    yajl_parser *parser;
+    zval *parser_index, **nhdl;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rZ", &parser_index, &nhdl)
+            == FAILURE)
+    {
+        return;
+    }
+
+    ZEND_FETCH_RESOURCE(parser, yajl_parser *, &parser_index,
+                            -1, "yajl parser", le_yajl_parser);
+
+    yajl_set_handler(&parser->numberHandler, nhdl);
 
     RETVAL_TRUE;
 }
