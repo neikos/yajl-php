@@ -323,18 +323,6 @@ static zval *create_double_zval(double value)
     return ret;
 }
 
-/*
-static zval *create_number_zval(const char *numberVal, size_t numberLen)
-{
-    zval *ret;
-
-    MAKE_STD_ZVAL(ret);
-    ZVAL_STRINGL(ret,numberVal,numberLen,true);
-
-    return ret;
-}
-*/
-
 static zval *create_string_zval(const char *stringVal, size_t stringLen)
 {
     zval *ret;
@@ -433,7 +421,8 @@ static int yajl_integer(void *ctx, long long integerVal)
         if ( parser->numberHandler )
         {
             args[0] = create_resource_zval(parser->index);
-            args[1] = create_long_zval(integerVal);
+            args[1] = create_long_zval(integerVal); /* Somehow return 0 if integerVal
+                                                       can't be stuffed into a long */
 
             if ((retval = yajl_call_handler(parser, parser->numberHandler,2, args)))
             {
@@ -479,7 +468,29 @@ static int yajl_string(void *ctx, const unsigned char *stringVal, size_t stringL
             args[0] = create_resource_zval(parser->index);
             args[1] = create_string_zval((const char *)stringVal, stringLen);
 
-            if ((retval = yajl_call_handler(parser, parser->stringHandler,1, args)))
+            if ((retval = yajl_call_handler(parser, parser->stringHandler,2, args)))
+            {
+                zval_ptr_dtor(&retval);
+            }
+        }
+    }
+
+    return 1;
+}
+
+static int yajl_number(void *ctx, const char *numberVal, size_t numberLen)
+{
+    yajl_parser *parser = (yajl_parser *)ctx;
+    zval *retval, *args[2];
+
+    if ( parser )
+    {
+        if ( parser->numberHandler )
+        {
+            args[0] = create_resource_zval(parser->index);
+            args[1] = create_string_zval((const char *)numberVal, numberLen);
+
+            if ((retval = yajl_call_handler(parser, parser->numberHandler,2, args)))
             {
                 zval_ptr_dtor(&retval);
             }
@@ -521,6 +532,21 @@ static yajl_callbacks callbacks =
     .yajl_integer = yajl_integer,
     .yajl_double = yajl_double,
     .yajl_number = NULL,
+    .yajl_string = yajl_string,
+    .yajl_start_map = yajl_start_map,
+    .yajl_map_key = yajl_map_key,
+    .yajl_end_map = yajl_end_map,
+    .yajl_start_array = yajl_start_array,
+    .yajl_end_array = yajl_end_array
+};
+
+static yajl_callbacks numbers_are_strings_callbacks =
+{
+    .yajl_null = yajl_null,
+    .yajl_boolean = yajl_boolean,
+    .yajl_integer = NULL,
+    .yajl_double = NULL,
+    .yajl_number = yajl_number,
     .yajl_string = yajl_string,
     .yajl_start_map = yajl_start_map,
     .yajl_map_key = yajl_map_key,
@@ -664,14 +690,30 @@ PHP_FUNCTION(confirm_yajl_compiled)
 	RETURN_STRINGL(strg, len, 0);
 }
 
-/* {{{ proto int yajl_parser_create() 
+/* {{{ proto int yajl_parser_create( [ bool $numbers_are_strings ]) 
    Creates a yajl parser resource */
 PHP_FUNCTION(yajl_parser_create)
 {
     yajl_parser *parser;
+    zend_bool numbers_are_strings = 0;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|b",
+                                &numbers_are_strings) == FAILURE)
+    {
+        return;
+    }
 
     parser = ecalloc(1, sizeof(yajl_parser));
-    parser->yajl_handle = yajl_alloc(&callbacks, &alloc_funcs, parser);
+    if ( numbers_are_strings )
+    {
+        parser->yajl_handle = yajl_alloc(&numbers_are_strings_callbacks,
+                                            &alloc_funcs, parser);
+    }
+    else
+    {
+        parser->yajl_handle = yajl_alloc(&callbacks,
+                                            &alloc_funcs, parser);
+    }
                                                                     
     parser->object = NULL;
 
@@ -800,7 +842,8 @@ PHP_FUNCTION(yajl_set_number_handler)
 }
 /* }}} */
 
-/* {{{ proto int yajl_parse(resource parser, string data [, is_final [, verbose_error] ]) 
+/* {{{ proto int yajl_parse(resource parser, string data 
+                                [, bool is_final [, bool verbose_error] ]) 
    Parse some JSON text */
 PHP_FUNCTION(yajl_parse)
 {
