@@ -42,15 +42,21 @@ PHP_RINIT_FUNCTION(yajl);
 PHP_RSHUTDOWN_FUNCTION(yajl);
 PHP_MINFO_FUNCTION(yajl);
 
-PHP_FUNCTION(confirm_yajl_compiled);	/* For testing, remove later. */
 PHP_FUNCTION(yajl_parser_create);
 PHP_FUNCTION(yajl_parser_set_option);
 PHP_FUNCTION(yajl_parser_set_object);
 PHP_FUNCTION(yajl_set_null_handler);
 PHP_FUNCTION(yajl_set_number_handler);
+PHP_FUNCTION(yajl_set_string_handler);
+PHP_FUNCTION(yajl_set_start_map_handler);
+PHP_FUNCTION(yajl_set_map_key_handler);
+PHP_FUNCTION(yajl_set_end_map_handler);
+PHP_FUNCTION(yajl_set_start_array_handler);
+PHP_FUNCTION(yajl_set_end_array_handler);
 PHP_FUNCTION(yajl_parse);
 PHP_FUNCTION(yajl_parser_free);
 PHP_FUNCTION(yajl_get_error);
+PHP_FUNCTION(yajl_get_bytes_consumed);
 
 /* 
   	Declare any global variables you may need between the BEGIN
