@@ -449,6 +449,8 @@ static int yajl_integer(void *ctx, long long integerVal)
     yajl_parser *parser = (yajl_parser *)ctx;
     zval *retval, *args[2];
 
+    TSRMLS_FETCH();
+
     if ( parser )
     {
         if ( parser->numberHandler )
