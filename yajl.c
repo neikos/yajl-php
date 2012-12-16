@@ -444,7 +444,6 @@ static int yajl_boolean(void *ctx, int boolVal)
     return 1;
 }
 
-/* XXX long long and long are different on 32 bit architectures */
 static int yajl_integer(void *ctx, long long integerVal)
 {
     yajl_parser *parser = (yajl_parser *)ctx;
@@ -455,8 +454,18 @@ static int yajl_integer(void *ctx, long long integerVal)
         if ( parser->numberHandler )
         {
             args[0] = create_resource_zval(parser->index);
-            args[1] = create_long_zval(integerVal); /* Somehow return 0 if integerVal
-                                                       can't be stuffed into a long */
+            args[1] = create_long_zval(integerVal);
+
+			if ((long)integerVal != integerVal) /* If truncation would occur, as it
+												   might in 32 bit archs where 'long'
+												   type is 4 bytes in size and a
+												   'long long' is 8 bytes in size,
+												   cause a handler failure */
+			{
+                php_error_docref(NULL TSRMLS_CC, E_WARNING,
+					"integer could not be represented as a php int. Try parsing with 'numbers_are_strings' set to true: e.g., $parser = yajl_parser_create(true).");
+				return 0;
+			}
 
             if ((retval = yajl_call_handler(parser, parser->numberHandler,2, args)))
             {
