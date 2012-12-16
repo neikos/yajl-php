@@ -362,7 +362,7 @@ static zval *create_string_zval(const char *stringVal, size_t stringLen)
     zval *ret;
 
     MAKE_STD_ZVAL(ret);
-    ZVAL_STRINGL(ret,stringVal,stringLen,true);
+    ZVAL_STRINGL(ret,stringVal,stringLen,1);
 
     return ret;
 }
