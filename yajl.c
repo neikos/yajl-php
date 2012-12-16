@@ -455,9 +455,6 @@ static int yajl_integer(void *ctx, long long integerVal)
     {
         if ( parser->numberHandler )
         {
-            args[0] = create_resource_zval(parser->index);
-            args[1] = create_long_zval(integerVal);
-
 			if ((long)integerVal != integerVal) /* If truncation would occur, as it
 												   might in 32 bit archs where 'long'
 												   type is 4 bytes in size and a
@@ -468,6 +465,9 @@ static int yajl_integer(void *ctx, long long integerVal)
 					"integer could not be represented as a php int. Try parsing with 'numbers_are_strings' set to true: e.g., $parser = yajl_parser_create(true).");
 				return 0;
 			}
+
+            args[0] = create_resource_zval(parser->index);
+            args[1] = create_long_zval(integerVal);
 
             if ((retval = yajl_call_handler(parser, parser->numberHandler,2, args)))
             {
