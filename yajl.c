@@ -547,26 +547,107 @@ static int yajl_number(void *ctx, const char *numberVal, size_t numberLen)
 
 static int yajl_start_map(void *ctx)
 {
+    yajl_parser *parser = (yajl_parser *)ctx;
+    zval *retval, *args[1];
+
+    if ( parser )
+    {
+        if ( parser->startMapHandler )
+        {
+            args[0] = create_resource_zval(parser->index);
+
+            if ((retval = yajl_call_handler(parser, parser->startMapHandler,1, args)))
+            {
+                zval_ptr_dtor(&retval);
+            }
+        }
+    }
+
     return 1;
 }
 
 static int yajl_map_key(void *ctx, const unsigned char * key, size_t keyLen)
 {
+    yajl_parser *parser = (yajl_parser *)ctx;
+    zval *retval, *args[2];
+
+    if ( parser )
+    {
+        if ( parser->mapKeyHandler )
+        {
+            args[0] = create_resource_zval(parser->index);
+            args[1] = create_string_zval((const char *)key, keyLen);
+
+            if ((retval = yajl_call_handler(parser, parser->mapKeyHandler,2, args)))
+            {
+                zval_ptr_dtor(&retval);
+            }
+        }
+    }
+
     return 1;
 }
 
 static int yajl_end_map(void *ctx)
 {
+    yajl_parser *parser = (yajl_parser *)ctx;
+    zval *retval, *args[1];
+
+    if ( parser )
+    {
+        if ( parser->endMapHandler )
+        {
+            args[0] = create_resource_zval(parser->index);
+
+            if ((retval = yajl_call_handler(parser, parser->endMapHandler,1, args)))
+            {
+                zval_ptr_dtor(&retval);
+            }
+        }
+    }
+
     return 1;
 }
 
 static int yajl_start_array(void *ctx)
 {
+    yajl_parser *parser = (yajl_parser *)ctx;
+    zval *retval, *args[1];
+
+    if ( parser )
+    {
+        if ( parser->startArrayHandler )
+        {
+            args[0] = create_resource_zval(parser->index);
+
+            if ((retval = yajl_call_handler(parser, parser->startArrayHandler,1, args)))
+            {
+                zval_ptr_dtor(&retval);
+            }
+        }
+    }
+
     return 1;
 }
 
 static int yajl_end_array(void *ctx)
 {
+    yajl_parser *parser = (yajl_parser *)ctx;
+    zval *retval, *args[1];
+
+    if ( parser )
+    {
+        if ( parser->endArrayHandler )
+        {
+            args[0] = create_resource_zval(parser->index);
+
+            if ((retval = yajl_call_handler(parser, parser->endArrayHandler,1, args)))
+            {
+                zval_ptr_dtor(&retval);
+            }
+        }
+    }
+
     return 1;
 }
 
