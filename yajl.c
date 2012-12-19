@@ -1149,7 +1149,7 @@ PHP_FUNCTION(yajl_parser_free)
 /* }}} */
 
 /* {{{ proto int yajl_get_error(resource parser) 
-   Free the JSON parser */
+   Free JSON parser error string */
 PHP_FUNCTION(yajl_get_error)
 {
     yajl_parser *parser;
