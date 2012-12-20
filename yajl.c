@@ -836,10 +836,10 @@ PHP_FUNCTION(yajl_parser_create)
 PHP_FUNCTION(yajl_parser_set_option)
 {
     yajl_parser *parser;
-    zval *parser_index, **val;
-    long opt;
+    zval *parser_index;
+    long opt, val = 0;
     
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rll",
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rl|l",
                                 &parser_index, &opt, &val) == FAILURE)
     {
         return;
@@ -866,11 +866,11 @@ PHP_FUNCTION(yajl_parser_set_option)
             break;
     }
 
-    if ( yajl_config(parser->yajl_handle, opt, Z_LVAL_PP(val)) == 0 )
+    if ( yajl_config(parser->yajl_handle, opt, val) == 0 )
     {
         php_error_docref(NULL TSRMLS_CC, E_WARNING,
             "Could not set yajl parser config option %lx to value %ld",
-                                                        opt, Z_LVAL_PP(val));
+                                                        opt, val);
 
         RETURN_FALSE;
     }
@@ -1091,7 +1091,7 @@ PHP_FUNCTION(yajl_parse)
     yajl_parser *parser;
     zval *parser_index;
     char *data;
-    size_t data_len;
+    int data_len;
     zend_bool is_final = 0;
     zend_bool verbose_error = 0;
 
