@@ -1,0 +1,21 @@
+PREREQUISITES:
+
+>= PHP 5.4
+
+yajl library version >= 2.0.5 available from git://github.com/lloyd/yajl
+
+INSTRUCTIONS:
+
+Clone/de-archive yajl-php source into <php-sources-dir>/ext/yajl
+
+cd <php-sources-dir>/ext/yajl
+
+phpize
+
+./configure --with-yajl=<path-to-yajl-install>
+
+make
+
+make test
+
+sudo make install
