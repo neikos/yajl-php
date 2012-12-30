@@ -1,0 +1,430 @@
+This extension wraps the yajl JSON parser api, part of the yajl library
+available at http://lloyd.github.com/yajl/, with php bindings. This extension
+mimics the xml parser which is part of the php distribution.
+
+Basic Operation:
+
+	1.	Define functions to be used as 'callbacks' for each JSON construct.
+
+	2.	Create a parser by calling yajl_parser_create().
+
+	3.	Assign the callback functions from step 1 to the newly created parser.
+
+	4.	Call yajl_parse($parser). Where $parser is the parser resource returned
+	 	by yajl_parser_create() in step 2.
+
+Function Descriptions:
+
+resource yajl_parser_create([ bool $numbers_are_strings])
+
+	Creates a yajl parser resource.
+	
+	Parameters:
+		numbers_are_strings
+			pass a string representation to the callback that handles numbers
+			instead of an integer or a double. This is useful if bcmath is
+			enabled and your JSON has huge numbers. This parameter is optional.
+			Its default value is false.
+		
+	Return Values
+		Returns a handle to a newly created yajl parser
+		
+bool yajl_parser_set_option(resource $parser, int $option, [, int $value])
+
+	Sets various options for an existing parser.
+
+	Parameters:
+		parser
+			The parser resource created by yajl_parser_create().
+			
+		option
+			Which option to set. See below.
+
+			The following options are available:
+
+			YAJL_ALLOW_COMMENTS
+				Ignore javascript style comments.
+				
+			YAJL_DONT_VALIDATE_STRINGS
+				Verify that the strings in the JSON input are valid UTF8
+				strings.
+				
+			YAJL_ALLOW_TRAILING_GARBAGE
+				If there is any JSON data left that wasn't consumed after the
+				call to yajl_complete_parse() an error will be raised unless
+                this option is set to 1.
+				
+			YAJL_ALLOW_MULTIPLE_VALUES
+				Allow multiple values to be parsed by a single handle.
+				
+			YAJL_ALLOW_PARTIAL_VALUES
+				If set to 1, yajl_complete_parse() will not raise an error if
+				the top level value was not completely consumed.
+				
+		value
+			The option's new value. Defaults to 0 if omitted.
+			
+	Return Values
+		Returns true on success, false otherwise.
+
+bool yajl_set_object(resource $parser, object $&obj)
+
+	Allow parser to be used inside an object. The parser's callbacks are
+    assumed to be methods of this object.
+	
+	Parameters:
+		parser
+			The parser resource created by yajl_parser_create().
+		
+		obj
+			The object where the parser is used.
+			
+	Return Values
+		Returns true on success, false otherwise.
+		
+bool yajl_set_null_handler(resource $parser, callable $handler)
+
+	Set the callback function to be called when the parser encounters a null
+	value.
+	
+	Parameters:
+		parser
+			The parser resource created by yajl_parser_create().
+			
+		handler
+			A string containing the name of the function that must exist when
+			yajl_parse() is called.
+			
+			The handler must accept one parameter:
+			
+				handler($parser)
+				
+				Parameters:
+					parser
+						The parser which is calling this handler.
+				
+	Return Values
+		Returns true on success, false otherwise.
+		
+bool yajl_set_boolean_handler(resource $parser, callable $handler)
+
+	Set the callback function to be called when the parser encounters a boolean
+	value.
+
+	Parameters:
+		parser
+			The parser resource created by yajl_parser_create().
+
+		handler
+			A string containing the name of the function that must exist when
+			yajl_parse() is called.
+
+			The handler must accept two parameters:
+
+				handler(resource $parser, bool $booleanVal)
+
+				Parameters:
+					parser
+						The parser which is calling this handler.
+						
+					booleanVal
+						The boolean value encountered by the parser.
+
+	Return Values
+		Returns true on success, false otherwise.
+
+bool yajl_set_number_handler(resource $parser, callable $handler)
+
+	Set the callback function to be called when the parser encounters a number
+	value.
+
+	Parameters:
+		parser
+			The parser resource created by yajl_parser_create().
+
+		handler
+			A string containing the name of the function that must exist when
+			yajl_parse() is called.
+
+			The handler must accept two parameters:
+
+				handler(resource $parser, mixed $numberVal)
+
+				Parameters:
+					parser
+						The parser which is calling this handler.
+						
+					numberVal
+						The number value encountered by the parser. If
+                        yajl_parser_create(true), was called ie., optional
+                        parameter 'numbers_are_strings' set to true, then
+                        $numberVal will be a string; otherwise, it will be
+                        a double or int depending on the number the parser
+                        encounters.
+
+	Return Values
+		Returns true on success, false otherwise.
+
+bool yajl_set_string_handler(resource $parser, callable $handler)
+
+	Set the callback function to be called when the parser encounters a string
+	value.
+
+	Parameters:
+		parser
+			The parser resource created by yajl_parser_create().
+
+		handler
+			A string containing the name of the function that must exist when
+			yajl_parse() is called.
+
+			The handler must accept two parameters:
+
+				handler(resource $parser, string $stringVal)
+
+				Parameters:
+					parser
+						The parser which is calling this handler.
+						
+					stringVal
+						The string value encountered by the parser.
+
+	Return Values
+		Returns true on success, false otherwise.
+
+bool yajl_set_start_map_handler(resource $parser, callable $handler)
+
+	Set the callback function to be called when the parser encounters the
+    beginning of a map.
+
+	Parameters:
+		parser
+			The parser resource created by yajl_parser_create().
+
+		handler
+			A string containing the name of the function that must exist when
+			yajl_parse() is called.
+
+			The handler must accept one parameter:
+
+				handler(resource $parser)
+
+				Parameters:
+					parser
+						The parser which is calling this handler.
+
+	Return Values
+		Returns true on success, false otherwise.
+
+bool yajl_set_map_key_handler(resource $parser, callable $handler)
+
+	Set the callback function to be called when the parser encounters a map
+    key.
+
+	Parameters:
+		parser
+			The parser resource created by yajl_parser_create().
+
+		handler
+			A string containing the name of the function that must exist when
+			yajl_parse() is called.
+
+			The handler must accept two parameters:
+
+				handler(resource $parser, string $keyString)
+
+				Parameters:
+					parser
+						The parser which is calling this handler.
+						
+					keyString
+						The key string encountered by the parser.
+
+	Return Values
+		Returns true on success, false otherwise.
+
+bool yajl_set_end_map_handler(resource $parser, callable $handler)
+
+	Set the callback function to be called when the parser encounters the
+    end of a map.
+
+	Parameters:
+		parser
+			The parser resource created by yajl_parser_create().
+
+		handler
+			A string containing the name of the function that must exist when
+			yajl_parse() is called.
+
+			The handler must accept one parameter:
+
+				handler(resource $parser)
+
+				Parameters:
+					parser
+						The parser which is calling this handler.
+
+	Return Values
+		Returns true on success, false otherwise.
+
+bool yajl_set_start_array_handler(resource $parser, callable $handler)
+
+	Set the callback function to be called when the parser encounters the
+    beginning of an array.
+
+	Parameters:
+		parser
+			The parser resource created by yajl_parser_create().
+
+		handler
+			A string containing the name of the function that must exist when
+			yajl_parse() is called.
+
+			The handler must accept one parameter:
+
+				handler(resource $parser)
+
+				Parameters:
+					parser
+						The parser which is calling this handler.
+
+	Return Values
+		Returns true on success, false otherwise.
+
+bool yajl_set_end_array_handler(resource $parser, callable $handler)
+
+	Set the callback function to be called when the parser encounters the
+    end of an array.
+
+	Parameters:
+		parser
+			The parser resource created by yajl_parser_create().
+
+		handler
+			A string containing the name of the function that must exist when
+			yajl_parse() is called.
+
+			The handler must accept one parameter:
+
+				handler(resource $parser)
+
+				Parameters:
+					parser
+						The parser which is calling this handler.
+
+	Return Values
+		Returns true on success, false otherwise.
+
+int yajl_parse(resource $parser, string $data [, bool $verbose_error])
+
+    Parse a chunk of JSON.
+
+	Parameters:
+		parser
+			The parser resource created by yajl_parser_create().
+
+        data
+            A chunk of data to be parsed.
+
+        bool
+            If set to true, yajl_get_error() will return a verbose error
+            string. This parameter is optional. Its default value is false.
+
+	Return Values
+		Returns 1 on success, 0 otherwise.
+
+int yajl_complete_parse(resource $parser)
+
+    When the parser encounters a situation where the current data chunk
+    does not give it enough information to determine that there won't be
+    any more data chunks to follow, this function tells the parser that,
+    indeed, there are no more data chucks to parse and that it should 
+    interpret, for instance, that a sequence of digits occuring at the
+    the end of the current data chunk is the whole number. No more digits
+    are coming. It's okay to call the number handler now.
+
+	Parameters:
+		parser
+			The parser resource created by yajl_parser_create().
+
+	Return Values
+		Returns 1 on success, 0 otherwise.
+
+int yajl_parser_free(resource $parser)
+
+    Free the resources taken up by parser.
+
+	Parameters:
+		parser
+			The parser whose resources are to be freed.
+
+	Return Values
+		Returns true on success, false otherwise.
+
+int yajl_get_error(resource parser)
+
+    Get the JSON parser's current error string
+
+	Parameters:
+		parser
+			The parser whose resources are to be freed.
+
+	Return Values
+		Returns the current parser's error string. It will be verbose if
+        yajl_parse was called with verbose_error set to true.
+
+int yajl_get_bytes_consumed(resource $parser)
+
+    Get the amount of data consumed from the last chunk passed to the  
+    yajl parser.
+
+KNOWN ISSUES:
+
+Windows port not attempted yet.
+
+'make test' may fail on 32 bit architectures for integer overflow tests
+as the error is caught by php code instead the yajl library. The yajl
+library uses 'long long' for integers and php uses 'long' internally.
+
+EXAMPLE:
+
+<?php
+function test_yajl_number($parser, $numberVal)
+{
+    $numberType = gettype($numberVal);
+
+    if ( $numberType == 'integer' )
+    {
+        printf("integer: %ld\n", $numberVal);
+    }
+    else
+    {
+        printf("double: %g\n", $numberVal);
+    }
+}
+
+function test_yajl_string($parser, $stringVal)
+{
+    printf("string: '%s'\n",$stringVal);
+}
+
+$parser = yajl_parser_create();
+
+yajl_set_number_handler($parser, 'test_yajl_number');
+yajl_set_string_handler($parser, 'test_yajl_string');
+
+
+$data = '
+{
+  "one": 1,
+  "two": 2,
+  "two and a half": 2.5,
+  "three": 3,
+  "this": "is",
+  "really": "simple",
+  "json": "right?"
+}';
+
+yajl_parse($parser, $data);
+yajl_complete_parse($parser);
+?>

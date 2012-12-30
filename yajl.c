@@ -2,7 +2,8 @@
   +----------------------------------------------------------------------+
   | PHP Version 5                                                        |
   +----------------------------------------------------------------------+
-  | Copyright (c) 1997-2012 The PHP Group                                |
+  | Copyright (c) 1997-2012, Nick Tolomiczenko                           |
+  |                          <nick.tolomiczenko@gmail.com>               |
   +----------------------------------------------------------------------+
   | This source file is subject to version 3.01 of the PHP license,      |
   | that is bundled with this package in the file LICENSE, and is        |
@@ -12,7 +13,7 @@
   | obtain it through the world-wide-web, please send a note to          |
   | license@php.net so we can mail you a copy immediately.               |
   +----------------------------------------------------------------------+
-  | Author:                                                              |
+  | Author: Nick Tolomiczenko <nick.tolomiczenko@gmail.com>              |
   +----------------------------------------------------------------------+
 */
 
@@ -47,12 +48,16 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_yajl_parser_set_option, 0, 0, 2)
     ZEND_ARG_INFO(0, value)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_yajl_parser_set_object, 0, 0, 2)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_yajl_set_object, 0, 0, 2)
     ZEND_ARG_INFO(0, parser)
     ZEND_ARG_INFO(1, obj)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_yajl_set_null_handler, 0, 0, 1)
+    ZEND_ARG_INFO(0, parser)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_yajl_set_boolean_handler, 0, 0, 1)
     ZEND_ARG_INFO(0, parser)
 ZEND_END_ARG_INFO()
 
@@ -87,7 +92,11 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_yajl_parse, 0, 0, 2)
     ZEND_ARG_INFO(0, parser)
     ZEND_ARG_INFO(0, data)
-    ZEND_ARG_INFO(0, is_final)
+    ZEND_ARG_INFO(0, verbose_error)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_yajl_complete_parse, 0, 0, 1)
+    ZEND_ARG_INFO(0, parser)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_yajl_parser_free, 0, 0, 1)
@@ -109,8 +118,9 @@ ZEND_END_ARG_INFO()
 const zend_function_entry yajl_functions[] = {
 	PHP_FE(yajl_parser_create,	arginfo_yajl_parser_create)
 	PHP_FE(yajl_parser_set_option,	arginfo_yajl_parser_set_option)
-	PHP_FE(yajl_parser_set_object,	arginfo_yajl_parser_set_object)
+	PHP_FE(yajl_set_object,	arginfo_yajl_set_object)
 	PHP_FE(yajl_set_null_handler,	arginfo_yajl_set_null_handler)
+	PHP_FE(yajl_set_boolean_handler,	arginfo_yajl_set_boolean_handler)
 	PHP_FE(yajl_set_number_handler,	arginfo_yajl_set_number_handler)
 	PHP_FE(yajl_set_string_handler,	arginfo_yajl_set_string_handler)
 	PHP_FE(yajl_set_start_map_handler,	arginfo_yajl_set_start_map_handler)
@@ -119,6 +129,7 @@ const zend_function_entry yajl_functions[] = {
 	PHP_FE(yajl_set_start_array_handler,	arginfo_yajl_set_start_array_handler)
 	PHP_FE(yajl_set_end_array_handler,	arginfo_yajl_set_end_array_handler)
 	PHP_FE(yajl_parse,	arginfo_yajl_parse)
+	PHP_FE(yajl_complete_parse,	arginfo_yajl_complete_parse)
 	PHP_FE(yajl_parser_free,	arginfo_yajl_parser_free)
 	PHP_FE(yajl_get_error,	arginfo_yajl_get_error)
 	PHP_FE(yajl_get_bytes_consumed,	arginfo_yajl_get_bytes_consumed)
@@ -795,11 +806,7 @@ static zval *yajl_call_handler(yajl_parser *parser, zval *handler,int argc, zval
 }
 /* }}} */
 
-/* Remove the following function when you have succesfully modified config.m4
-   so that your module can be compiled into PHP, it exists only for testing
-   purposes. */
-
-/* {{{ proto int yajl_parser_create( [ bool $numbers_are_strings ]) 
+/* {{{ proto int yajl_parser_create( [ bool numbers_are_strings ]) 
    Creates a yajl parser resource */
 PHP_FUNCTION(yajl_parser_create)
 {
@@ -831,7 +838,7 @@ PHP_FUNCTION(yajl_parser_create)
 }
 /* }}} */
 
-/* {{{ proto int yajl_parser_set_option(resource parser, int option, int value) 
+/* {{{ proto int yajl_parser_set_option(resource parser, int option [, int value]) 
    Set options in an yajl parser */
 PHP_FUNCTION(yajl_parser_set_option)
 {
@@ -879,9 +886,9 @@ PHP_FUNCTION(yajl_parser_set_option)
 }
 /* }}} */
 
-/* {{{ proto int yajl_parser_set_object(resource parser, object &obj) 
+/* {{{ proto int yajl_set_object(resource parser, object &obj) 
    Set an object that will have the callbacks as methods */
-PHP_FUNCTION(yajl_parser_set_object)
+PHP_FUNCTION(yajl_set_object)
 {
     yajl_parser *parser;
     zval *parser_index, *mythis;
@@ -907,7 +914,7 @@ PHP_FUNCTION(yajl_parser_set_object)
 }
 /* }}} */
 
-/* {{{ proto int yajl_set_null_handler(resource parser) 
+/* {{{ proto int yajl_set_null_handler(resource parser, string nhdl) 
    Set a handler to be called when a json 'null' is parsed */
 PHP_FUNCTION(yajl_set_null_handler)
 {
@@ -929,7 +936,29 @@ PHP_FUNCTION(yajl_set_null_handler)
 }
 /* }}} */
 
-/* {{{ proto int yajl_set_number_handler(resource parser) 
+/* {{{ proto int yajl_set_boolean_handler(resource parser, string bhdl) 
+   Set a handler to be called when a json 'boolean' is parsed */
+PHP_FUNCTION(yajl_set_boolean_handler)
+{
+    yajl_parser *parser;
+    zval *parser_index, **bhdl;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rZ", &parser_index, &bhdl)
+            == FAILURE)
+    {
+        return;
+    }
+
+    ZEND_FETCH_RESOURCE(parser, yajl_parser *, &parser_index,
+                            -1, "yajl parser", le_yajl_parser);
+
+    yajl_set_handler(&parser->booleanHandler, bhdl);
+
+    RETVAL_TRUE;
+}
+/* }}} */
+
+/* {{{ proto int yajl_set_number_handler(resource parser, string nhdl) 
    Set a handler to be called when a json number is parsed */
 PHP_FUNCTION(yajl_set_number_handler)
 {
@@ -951,14 +980,14 @@ PHP_FUNCTION(yajl_set_number_handler)
 }
 /* }}} */
 
-/* {{{ proto int yajl_set_string_handler(resource parser) 
+/* {{{ proto int yajl_set_string_handler(resource parser, string shdl) 
    Set a handler to be called when a json string is parsed */
 PHP_FUNCTION(yajl_set_string_handler)
 {
     yajl_parser *parser;
-    zval *parser_index, **nhdl;
+    zval *parser_index, **shdl;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rZ", &parser_index, &nhdl)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rZ", &parser_index, &shdl)
             == FAILURE)
     {
         return;
@@ -967,20 +996,20 @@ PHP_FUNCTION(yajl_set_string_handler)
     ZEND_FETCH_RESOURCE(parser, yajl_parser *, &parser_index,
                             -1, "yajl parser", le_yajl_parser);
 
-    yajl_set_handler(&parser->stringHandler, nhdl);
+    yajl_set_handler(&parser->stringHandler, shdl);
 
     RETVAL_TRUE;
 }
 /* }}} */
 
-/* {{{ proto int yajl_set_start_map_handler(resource parser) 
+/* {{{ proto int yajl_set_start_map_handler(resource parser, string smhdl) 
    Set a handler to be called when the start of a json map is encountered */
 PHP_FUNCTION(yajl_set_start_map_handler)
 {
     yajl_parser *parser;
-    zval *parser_index, **nhdl;
+    zval *parser_index, **smhdl;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rZ", &parser_index, &nhdl)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rZ", &parser_index, &smhdl)
             == FAILURE)
     {
         return;
@@ -989,20 +1018,20 @@ PHP_FUNCTION(yajl_set_start_map_handler)
     ZEND_FETCH_RESOURCE(parser, yajl_parser *, &parser_index,
                             -1, "yajl parser", le_yajl_parser);
 
-    yajl_set_handler(&parser->startMapHandler, nhdl);
+    yajl_set_handler(&parser->startMapHandler, smhdl);
 
     RETVAL_TRUE;
 }
 /* }}} */
 
-/* {{{ proto int yajl_set_map_key_handler(resource parser) 
+/* {{{ proto int yajl_set_map_key_handler(resource parser, string mkhdl) 
    Set a handler to be called when a map key is encountered */
 PHP_FUNCTION(yajl_set_map_key_handler)
 {
     yajl_parser *parser;
-    zval *parser_index, **nhdl;
+    zval *parser_index, **mkhdl;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rZ", &parser_index, &nhdl)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rZ", &parser_index, &mkhdl)
             == FAILURE)
     {
         return;
@@ -1011,20 +1040,20 @@ PHP_FUNCTION(yajl_set_map_key_handler)
     ZEND_FETCH_RESOURCE(parser, yajl_parser *, &parser_index,
                             -1, "yajl parser", le_yajl_parser);
 
-    yajl_set_handler(&parser->mapKeyHandler, nhdl);
+    yajl_set_handler(&parser->mapKeyHandler, mkhdl);
 
     RETVAL_TRUE;
 }
 /* }}} */
 
-/* {{{ proto int yajl_set_end_map_handler(resource parser) 
+/* {{{ proto int yajl_set_end_map_handler(resource parser, string emhdl) 
    Set a handler to be called when the end of a json map is encountered */
 PHP_FUNCTION(yajl_set_end_map_handler)
 {
     yajl_parser *parser;
-    zval *parser_index, **nhdl;
+    zval *parser_index, **emhdl;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rZ", &parser_index, &nhdl)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rZ", &parser_index, &emhdl)
             == FAILURE)
     {
         return;
@@ -1033,20 +1062,20 @@ PHP_FUNCTION(yajl_set_end_map_handler)
     ZEND_FETCH_RESOURCE(parser, yajl_parser *, &parser_index,
                             -1, "yajl parser", le_yajl_parser);
 
-    yajl_set_handler(&parser->endMapHandler, nhdl);
+    yajl_set_handler(&parser->endMapHandler, emhdl);
 
     RETVAL_TRUE;
 }
 /* }}} */
 
-/* {{{ proto int yajl_set_start_array_handler(resource parser) 
+/* {{{ proto int yajl_set_start_array_handler(resource parser, string sahdl) 
    Set a handler to be called when the start of a json array is encountered */
 PHP_FUNCTION(yajl_set_start_array_handler)
 {
     yajl_parser *parser;
-    zval *parser_index, **nhdl;
+    zval *parser_index, **sahdl;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rZ", &parser_index, &nhdl)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rZ", &parser_index, &sahdl)
             == FAILURE)
     {
         return;
@@ -1055,20 +1084,20 @@ PHP_FUNCTION(yajl_set_start_array_handler)
     ZEND_FETCH_RESOURCE(parser, yajl_parser *, &parser_index,
                             -1, "yajl parser", le_yajl_parser);
 
-    yajl_set_handler(&parser->startArrayHandler, nhdl);
+    yajl_set_handler(&parser->startArrayHandler, sahdl);
 
     RETVAL_TRUE;
 }
 /* }}} */
 
-/* {{{ proto int yajl_set_end_array_handler(resource parser) 
+/* {{{ proto int yajl_set_end_array_handler(resource parser, string eahdl) 
    Set a handler to be called when the end of a json array is encountered */
 PHP_FUNCTION(yajl_set_end_array_handler)
 {
     yajl_parser *parser;
-    zval *parser_index, **nhdl;
+    zval *parser_index, **eahdl;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rZ", &parser_index, &nhdl)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rZ", &parser_index, &eahdl)
             == FAILURE)
     {
         return;
@@ -1077,14 +1106,13 @@ PHP_FUNCTION(yajl_set_end_array_handler)
     ZEND_FETCH_RESOURCE(parser, yajl_parser *, &parser_index,
                             -1, "yajl parser", le_yajl_parser);
 
-    yajl_set_handler(&parser->endArrayHandler, nhdl);
+    yajl_set_handler(&parser->endArrayHandler, eahdl);
 
     RETVAL_TRUE;
 }
 /* }}} */
 
-/* {{{ proto int yajl_parse(resource parser, string data 
-                                [, bool is_final [, bool verbose_error] ]) 
+/* {{{ proto int yajl_parse(resource parser, string data [, bool verbose_error]) 
    Parse some json text */
 PHP_FUNCTION(yajl_parse)
 {
@@ -1092,11 +1120,10 @@ PHP_FUNCTION(yajl_parse)
     zval *parser_index;
     char *data;
     int data_len;
-    zend_bool is_final = 0;
     zend_bool verbose_error = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rs|bb",
-        &parser_index, &data, &data_len, &is_final, &verbose_error) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rs|b",
+        &parser_index, &data, &data_len, &verbose_error) == FAILURE)
     {
         return;
     }
@@ -1115,10 +1142,26 @@ PHP_FUNCTION(yajl_parse)
     parser->yajl_status = yajl_parse(parser->yajl_handle,
                                         (unsigned char *)data, data_len);
 
-    if ( parser->yajl_status == yajl_status_ok && is_final ) 
+    RETVAL_LONG(parser->yajl_status==yajl_status_ok?1:0);
+}
+/* }}} */
+
+/* {{{ proto int yajl_complete_parse(resource parser) 
+   Parse any reamining buffered json text */
+PHP_FUNCTION(yajl_complete_parse)
+{
+    yajl_parser *parser;
+    zval *parser_index;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r", &parser_index) == FAILURE)
     {
-        parser->yajl_status = yajl_complete_parse(parser->yajl_handle);
-    } 
+        return;
+    }
+
+    ZEND_FETCH_RESOURCE(parser, yajl_parser *, &parser_index,
+                            -1, "yajl parser", le_yajl_parser);
+
+    parser->yajl_status = yajl_complete_parse(parser->yajl_handle);
 
     RETVAL_LONG(parser->yajl_status==yajl_status_ok?1:0);
 }
@@ -1149,7 +1192,7 @@ PHP_FUNCTION(yajl_parser_free)
 /* }}} */
 
 /* {{{ proto int yajl_get_error(resource parser) 
-   Free JSON parser error string */
+   Get the JSON parser's current error string */
 PHP_FUNCTION(yajl_get_error)
 {
     yajl_parser *parser;

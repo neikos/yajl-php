@@ -2,7 +2,8 @@
   +----------------------------------------------------------------------+
   | PHP Version 5                                                        |
   +----------------------------------------------------------------------+
-  | Copyright (c) 1997-2012 The PHP Group                                |
+  | Copyright (c) 1997-2012, Nick Tolomiczenko                           |
+  |                          <nick.tolomiczenko@gmail.com>               |
   +----------------------------------------------------------------------+
   | This source file is subject to version 3.01 of the PHP license,      |
   | that is bundled with this package in the file LICENSE, and is        |
@@ -12,7 +13,7 @@
   | obtain it through the world-wide-web, please send a note to          |
   | license@php.net so we can mail you a copy immediately.               |
   +----------------------------------------------------------------------+
-  | Author:                                                              |
+  | Author: Nick Tolomiczenko <nick.tolomiczenko@gmail.com>              |
   +----------------------------------------------------------------------+
 */
 
@@ -44,8 +45,9 @@ PHP_MINFO_FUNCTION(yajl);
 
 PHP_FUNCTION(yajl_parser_create);
 PHP_FUNCTION(yajl_parser_set_option);
-PHP_FUNCTION(yajl_parser_set_object);
+PHP_FUNCTION(yajl_set_object);
 PHP_FUNCTION(yajl_set_null_handler);
+PHP_FUNCTION(yajl_set_boolean_handler);
 PHP_FUNCTION(yajl_set_number_handler);
 PHP_FUNCTION(yajl_set_string_handler);
 PHP_FUNCTION(yajl_set_start_map_handler);
@@ -54,6 +56,7 @@ PHP_FUNCTION(yajl_set_end_map_handler);
 PHP_FUNCTION(yajl_set_start_array_handler);
 PHP_FUNCTION(yajl_set_end_array_handler);
 PHP_FUNCTION(yajl_parse);
+PHP_FUNCTION(yajl_complete_parse);
 PHP_FUNCTION(yajl_parser_free);
 PHP_FUNCTION(yajl_get_error);
 PHP_FUNCTION(yajl_get_bytes_consumed);
