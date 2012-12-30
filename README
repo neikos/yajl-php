@@ -10,8 +10,9 @@ Basic Operation:
 
 	3.	Assign the callback functions from step 1 to the newly created parser.
 
-	4.	Call yajl_parse($parser). Where $parser is the parser resource returned
-	 	by yajl_parser_create() in step 2.
+	4.	Call yajl_parse($parser, $data). Where $parser is the parser resource
+        returned by yajl_parser_create() in step 2 and $data is a chunk of data
+        to be parsed.
 
 Function Descriptions:
 
