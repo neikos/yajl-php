@@ -339,7 +339,7 @@ int yajl_complete_parse(resource $parser)
     When the parser encounters a situation where the current data chunk
     does not give it enough information to determine that there won't be
     any more data chunks to follow, this function tells the parser that,
-    indeed, there are no more data chucks to parse and that it should 
+    indeed, there are no more data chunks to parse and that it should 
     interpret, for instance, that a sequence of digits occuring at the
     the end of the current data chunk is the whole number. No more digits
     are coming. It's okay to call the number handler now.
