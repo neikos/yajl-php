@@ -2,7 +2,7 @@
 <!DOCTYPE package SYSTEM "../pear/package.dtd">
 <package>
  <name>yajl</name>
- <summary>JSON Parsing the yajl library</summary>
+ <summary>JSON Parsing using the yajl library</summary>
  <maintainers>
   <maintainer>
    <user>neikos</user>
