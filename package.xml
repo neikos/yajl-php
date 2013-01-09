@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<!DOCTYPE package SYSTEM "../pear/package.dtd">
+<package>
+ <name>yajl</name>
+ <summary>JSON Parsing the yajl library</summary>
+ <maintainers>
+  <maintainer>
+   <user>neikos</user>
+   <name>Nick Tolomiczenko</name>
+   <email>nick.tolomiczenko@gmail.com</email>
+   <role>lead</role>
+  </maintainer>
+ </maintainers>
+ <description>
+This extension wraps the yajl JSON parser api, part of the yajl library
+available at http://lloyd.github.com/yajl/, with php bindings. This extension
+mimics the xml parser which is part of the php distribution.
+ </description>
+ <license>PHP 3.01</license>
+ <release>
+  <state>beta</state>
+  <version>0.1</version>
+  <date>2012-12-30</date>
+  <notes>
+package.xml added to support installation using pear installer
+  </notes>
+  <configureoptions>
+    <configureoption name="with-yajl" default="autodetect" prompt="path to yajl installation?"/>
+  </configureoptions>
+  <filelist>
+    <file role="doc" name="CREDITS"/>
+    <file role="doc" name="INSTALL"/>
+    <file role="doc" name="README"/>
+    <file role="doc" name="LICENSE"/>
+    <file role="doc" name="EXPERIMENTAL"/>
+    <file role="src" name="config.m4"/>
+    <file role="src" name="config.w32"/>
+    <file role="src" name="php_yajl.h"/>
+    <file role="src" name="yajl.c"/>
+    <file role="test" name="tests/001.phpt"/>
+    <file role="test" name="tests/ac_difficult_json_c_test_case_with_comments.phpt"/>
+    <file role="test" name="tests/ac_simple_with_comments.phpt"/>
+    <file role="test" name="tests/ag_false_then_garbage.phpt"/>
+    <file role="test" name="tests/ag_null_then_garbage.phpt"/>
+    <file role="test" name="tests/ag_true_then_garbage.phpt"/>
+    <file role="test" name="tests/am_eof.phpt"/>
+    <file role="test" name="tests/am_integers.phpt"/>
+    <file role="test" name="tests/am_multiple.phpt"/>
+    <file role="test" name="tests/am_stuff.phpt"/>
+    <file role="test" name="tests/ap_array_open.phpt"/>
+    <file role="test" name="tests/ap_eof_str.phpt"/>
+    <file role="test" name="tests/ap_map_open.phpt"/>
+    <file role="test" name="tests/ap_partial_ok.phpt"/>
+    <file role="test" name="tests/array.phpt"/>
+    <file role="test" name="tests/array_close.phpt"/>
+    <file role="test" name="tests/bignums.phpt"/>
+    <file role="test" name="tests/bogus_char.phpt"/>
+    <file role="test" name="tests/codepoints_from_unicode_org.phpt"/>
+    <file role="test" name="tests/deep_arrays.phpt"/>
+    <file role="test" name="tests/difficult_json_c_test_case.phpt"/>
+    <file role="test" name="tests/doubles.phpt"/>
+    <file role="test" name="tests/doubles_in_array.phpt"/>
+    <file role="test" name="tests/empty_array.phpt"/>
+    <file role="test" name="tests/empty_string.phpt"/>
+    <file role="test" name="tests/escaped_bulgarian.phpt"/>
+    <file role="test" name="tests/escaped_foobar.phpt"/>
+    <file role="test" name="tests/false.phpt"/>
+    <file role="test" name="tests/fg_false_then_garbage.phpt"/>
+    <file role="test" name="tests/fg_issue_7.phpt"/>
+    <file role="test" name="tests/fg_null_then_garbage.phpt"/>
+    <file role="test" name="tests/fg_true_then_garbage.phpt"/>
+    <file role="test" name="tests/four_byte_utf8.phpt"/>
+    <file role="test" name="tests/high_overflow.phpt"/>
+    <file role="test" name="tests/integers.phpt"/>
+    <file role="test" name="tests/invalid_utf8.phpt"/>
+    <file role="test" name="tests/isolated_surrogate_marker.phpt"/>
+    <file role="test" name="tests/leading_zero_in_number.phpt"/>
+    <file role="test" name="tests/lonely_minus_sign.phpt"/>
+    <file role="test" name="tests/lonely_number.phpt"/>
+    <file role="test" name="tests/low_overflow.phpt"/>
+    <file role="test" name="tests/map_close.phpt"/>
+    <file role="test" name="tests/missing_integer_after_decimal_point.phpt"/>
+    <file role="test" name="tests/missing_integer_after_exponent.phpt"/>
+    <file role="test" name="tests/multiple.phpt"/>
+    <file role="test" name="tests/non_utf8_char_in_string.phpt"/>
+    <file role="test" name="tests/np_partial_bad.phpt"/>
+    <file role="test" name="tests/null.phpt"/>
+    <file role="test" name="tests/nulls_and_bools.phpt"/>
+    <file role="test" name="tests/simple.phpt"/>
+    <file role="test" name="tests/simple_with_comments.phpt"/>
+    <file role="test" name="tests/string_invalid_escape.phpt"/>
+    <file role="test" name="tests/string_invalid_hex_char.phpt"/>
+    <file role="test" name="tests/string_with_escapes.phpt"/>
+    <file role="test" name="tests/string_with_invalid_newline.phpt"/>
+    <file role="test" name="tests/three_byte_utf8.phpt"/>
+    <file role="test" name="tests/true.phpt"/>
+    <file role="test" name="tests/unescaped_bulgarian.phpt"/>
+    <file role="test" name="tests/zerobyte.phpt"/>
+    <file role="test" name="tests/cases/ac_difficult_json_c_test_case_with_comments.json"/>
+    <file role="test" name="tests/cases/ac_simple_with_comments.json"/>
+    <file role="test" name="tests/cases/ag_false_then_garbage.json"/>
+    <file role="test" name="tests/cases/ag_null_then_garbage.json"/>
+    <file role="test" name="tests/cases/ag_true_then_garbage.json"/>
+    <file role="test" name="tests/cases/am_eof.json"/>
+    <file role="test" name="tests/cases/am_integers.json"/>
+    <file role="test" name="tests/cases/am_multiple.json"/>
+    <file role="test" name="tests/cases/am_stuff.json"/>
+    <file role="test" name="tests/cases/ap_array_open.json"/>
+    <file role="test" name="tests/cases/ap_eof_str.json"/>
+    <file role="test" name="tests/cases/ap_map_open.json"/>
+    <file role="test" name="tests/cases/ap_partial_ok.json"/>
+    <file role="test" name="tests/cases/array.json"/>
+    <file role="test" name="tests/cases/array_close.json"/>
+    <file role="test" name="tests/cases/bignums.json"/>
+    <file role="test" name="tests/cases/bogus_char.json"/>
+    <file role="test" name="tests/cases/codepoints_from_unicode_org.json"/>
+    <file role="test" name="tests/cases/deep_arrays.json"/>
+    <file role="test" name="tests/cases/difficult_json_c_test_case.json"/>
+    <file role="test" name="tests/cases/doubles.json"/>
+    <file role="test" name="tests/cases/doubles_in_array.json"/>
+    <file role="test" name="tests/cases/empty_array.json"/>
+    <file role="test" name="tests/cases/empty_string.json"/>
+    <file role="test" name="tests/cases/escaped_bulgarian.json"/>
+    <file role="test" name="tests/cases/escaped_foobar.json"/>
+    <file role="test" name="tests/cases/false.json"/>
+    <file role="test" name="tests/cases/fg_false_then_garbage.json"/>
+    <file role="test" name="tests/cases/fg_issue_7.json"/>
+    <file role="test" name="tests/cases/fg_null_then_garbage.json"/>
+    <file role="test" name="tests/cases/fg_true_then_garbage.json"/>
+    <file role="test" name="tests/cases/four_byte_utf8.json"/>
+    <file role="test" name="tests/cases/high_overflow.json"/>
+    <file role="test" name="tests/cases/integers.json"/>
+    <file role="test" name="tests/cases/invalid_utf8.json"/>
+    <file role="test" name="tests/cases/isolated_surrogate_marker.json"/>
+    <file role="test" name="tests/cases/leading_zero_in_number.json"/>
+    <file role="test" name="tests/cases/lonely_minus_sign.json"/>
+    <file role="test" name="tests/cases/lonely_number.json"/>
+    <file role="test" name="tests/cases/low_overflow.json"/>
+    <file role="test" name="tests/cases/map_close.json"/>
+    <file role="test" name="tests/cases/missing_integer_after_decimal_point.json"/>
+    <file role="test" name="tests/cases/missing_integer_after_exponent.json"/>
+    <file role="test" name="tests/cases/multiple.json"/>
+    <file role="test" name="tests/cases/non_utf8_char_in_string.json"/>
+    <file role="test" name="tests/cases/np_partial_bad.json"/>
+    <file role="test" name="tests/cases/null.json"/>
+    <file role="test" name="tests/cases/nulls_and_bools.json"/>
+    <file role="test" name="tests/cases/simple.json"/>
+    <file role="test" name="tests/cases/simple_with_comments.json"/>
+    <file role="test" name="tests/cases/string_invalid_escape.json"/>
+    <file role="test" name="tests/cases/string_invalid_hex_char.json"/>
+    <file role="test" name="tests/cases/string_with_escapes.json"/>
+    <file role="test" name="tests/cases/string_with_invalid_newline.json"/>
+    <file role="test" name="tests/cases/three_byte_utf8.json"/>
+    <file role="test" name="tests/cases/true.json"/>
+    <file role="test" name="tests/cases/unescaped_bulgarian.json"/>
+    <file role="test" name="tests/cases/zerobyte.json"/>
+  </filelist>
+  <deps>
+   <dep type="php" rel="ge" version="5" />
+  </deps>
+ </release>
+</package>
+<!--
+vim:et:ts=1:sw=1
+-->
