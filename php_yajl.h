@@ -71,31 +71,6 @@ ZEND_BEGIN_MODULE_GLOBALS(yajl)
 ZEND_END_MODULE_GLOBALS(yajl)
 */
 
-#include <yajl/yajl_parse.h>
-
-typedef struct
-{
-    int index;
-
-    yajl_handle yajl_handle;
-
-    int yajl_status;
-
-    unsigned char *json_text;
-
-    zval *nullHandler;
-    zval *booleanHandler;
-    zval *numberHandler;
-    zval *stringHandler;
-    zval *startMapHandler;
-    zval *mapKeyHandler;
-    zval *endMapHandler;
-    zval *startArrayHandler;
-    zval *endArrayHandler;
-
-    zval *object;
-} yajl_parser;
-
 /* In every utility function you add that needs to use variables 
    in php_yajl_globals, call TSRMLS_FETCH(); after declaring other 
    variables used by that function, or better yet, pass in TSRMLS_CC

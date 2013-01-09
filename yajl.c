@@ -28,6 +28,31 @@
 #include "ext/standard/info.h"
 #include "php_yajl.h"
 
+#include <yajl/yajl_parse.h>
+
+typedef struct
+{
+	int index;
+
+	yajl_handle yajl_handle;
+
+	int yajl_status;
+
+	unsigned char *json_text;
+
+	zval *nullHandler;
+	zval *booleanHandler;
+	zval *numberHandler;
+	zval *stringHandler;
+	zval *startMapHandler;
+	zval *mapKeyHandler;
+	zval *endMapHandler;
+	zval *startArrayHandler;
+	zval *endArrayHandler;
+
+	zval *object;
+} yajl_parser;
+
 /* {{{ prototypes for forward declarations */
 static zval *yajl_call_handler(yajl_parser *, zval *, int, zval **);
 /* }}} */
@@ -43,72 +68,72 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_yajl_parser_create, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_yajl_parser_set_option, 0, 0, 2)
-    ZEND_ARG_INFO(0, parser)
-    ZEND_ARG_INFO(0, option)
-    ZEND_ARG_INFO(0, value)
+	ZEND_ARG_INFO(0, parser)
+	ZEND_ARG_INFO(0, option)
+	ZEND_ARG_INFO(0, value)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_yajl_set_object, 0, 0, 2)
-    ZEND_ARG_INFO(0, parser)
-    ZEND_ARG_INFO(1, obj)
+	ZEND_ARG_INFO(0, parser)
+	ZEND_ARG_INFO(1, obj)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_yajl_set_null_handler, 0, 0, 1)
-    ZEND_ARG_INFO(0, parser)
+	ZEND_ARG_INFO(0, parser)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_yajl_set_boolean_handler, 0, 0, 1)
-    ZEND_ARG_INFO(0, parser)
+	ZEND_ARG_INFO(0, parser)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_yajl_set_number_handler, 0, 0, 1)
-    ZEND_ARG_INFO(0, parser)
+	ZEND_ARG_INFO(0, parser)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_yajl_set_string_handler, 0, 0, 1)
-    ZEND_ARG_INFO(0, parser)
+	ZEND_ARG_INFO(0, parser)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_yajl_set_start_map_handler, 0, 0, 1)
-    ZEND_ARG_INFO(0, parser)
+	ZEND_ARG_INFO(0, parser)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_yajl_set_map_key_handler, 0, 0, 1)
-    ZEND_ARG_INFO(0, parser)
+	ZEND_ARG_INFO(0, parser)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_yajl_set_end_map_handler, 0, 0, 1)
-    ZEND_ARG_INFO(0, parser)
+	ZEND_ARG_INFO(0, parser)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_yajl_set_start_array_handler, 0, 0, 1)
-    ZEND_ARG_INFO(0, parser)
+	ZEND_ARG_INFO(0, parser)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_yajl_set_end_array_handler, 0, 0, 1)
-    ZEND_ARG_INFO(0, parser)
+	ZEND_ARG_INFO(0, parser)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_yajl_parse, 0, 0, 2)
-    ZEND_ARG_INFO(0, parser)
-    ZEND_ARG_INFO(0, data)
-    ZEND_ARG_INFO(0, verbose_error)
+	ZEND_ARG_INFO(0, parser)
+	ZEND_ARG_INFO(0, data)
+	ZEND_ARG_INFO(0, verbose_error)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_yajl_complete_parse, 0, 0, 1)
-    ZEND_ARG_INFO(0, parser)
+	ZEND_ARG_INFO(0, parser)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_yajl_parser_free, 0, 0, 1)
-    ZEND_ARG_INFO(0, parser)
+	ZEND_ARG_INFO(0, parser)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_yajl_get_error, 0, 0, 1)
-    ZEND_ARG_INFO(0, parser)
+	ZEND_ARG_INFO(0, parser)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_yajl_get_bytes_consumed, 0, 0, 1)
-    ZEND_ARG_INFO(0, parser)
+	ZEND_ARG_INFO(0, parser)
 ZEND_END_ARG_INFO()
 
 /* {{{ yajl_functions[]
@@ -147,8 +172,8 @@ zend_module_entry yajl_module_entry = {
 	yajl_functions,
 	PHP_MINIT(yajl),
 	PHP_MSHUTDOWN(yajl),
-	PHP_RINIT(yajl),		/* Replace with NULL if there's nothing to do at request start */
-	PHP_RSHUTDOWN(yajl),	/* Replace with NULL if there's nothing to do at request end */
+	NULL,
+	NULL,
 	PHP_MINFO(yajl),
 #if ZEND_MODULE_API_NO >= 20010901
 	"0.1", /* Replace with version number for your extension */
@@ -165,8 +190,8 @@ ZEND_GET_MODULE(yajl)
  */
 /* Remove comments and fill if you need to have entries in php.ini
 PHP_INI_BEGIN()
-    STD_PHP_INI_ENTRY("yajl.global_value",      "42", PHP_INI_ALL, OnUpdateLong, global_value, zend_yajl_globals, yajl_globals)
-    STD_PHP_INI_ENTRY("yajl.global_string", "foobar", PHP_INI_ALL, OnUpdateString, global_string, zend_yajl_globals, yajl_globals)
+	STD_PHP_INI_ENTRY("yajl.global_value",	  "42", PHP_INI_ALL, OnUpdateLong, global_value, zend_yajl_globals, yajl_globals)
+	STD_PHP_INI_ENTRY("yajl.global_string", "foobar", PHP_INI_ALL, OnUpdateString, global_string, zend_yajl_globals, yajl_globals)
 PHP_INI_END()
 */
 /* }}} */
@@ -185,69 +210,69 @@ static void php_yajl_init_globals(zend_yajl_globals *yajl_globals)
 /* {{{ yajl_parser_rsrc_dtor() */
 static void yajl_parser_rsrc_dtor(zend_rsrc_list_entry *rsrc TSRMLS_DC)
 {
-    yajl_parser *parser = (yajl_parser *)rsrc->ptr;
+	yajl_parser *parser = (yajl_parser *)rsrc->ptr;
 
-    if ( parser->yajl_handle )
-    {
-        yajl_free(parser->yajl_handle);
-    }
+	if ( parser->yajl_handle )
+	{
+		yajl_free(parser->yajl_handle);
+	}
 
-    if ( parser->json_text )
-    {
-        efree(parser->json_text);
-    }
+	if ( parser->json_text )
+	{
+		efree(parser->json_text);
+	}
 
-    if ( parser->nullHandler )
+	if ( parser->nullHandler )
 	{
 		zval_ptr_dtor(&parser->nullHandler);
 	}
 
-    if ( parser->booleanHandler )
+	if ( parser->booleanHandler )
 	{
 		zval_ptr_dtor(&parser->booleanHandler);
 	}
 
-    if ( parser->numberHandler )
+	if ( parser->numberHandler )
 	{
 		zval_ptr_dtor(&parser->numberHandler);
 	}
 
-    if ( parser->stringHandler )
+	if ( parser->stringHandler )
 	{
 		zval_ptr_dtor(&parser->stringHandler);
 	}
 
-    if ( parser->startMapHandler )
+	if ( parser->startMapHandler )
 	{
 		zval_ptr_dtor(&parser->startMapHandler);
 	}
 
-    if ( parser->mapKeyHandler )
+	if ( parser->mapKeyHandler )
 	{
 		zval_ptr_dtor(&parser->mapKeyHandler);
 	}
 
-    if ( parser->endMapHandler )
+	if ( parser->endMapHandler )
 	{
 		zval_ptr_dtor(&parser->endMapHandler);
 	}
 
-    if ( parser->startArrayHandler )
+	if ( parser->startArrayHandler )
 	{
 		zval_ptr_dtor(&parser->startArrayHandler);
 	}
 
-    if ( parser->endArrayHandler )
+	if ( parser->endArrayHandler )
 	{
 		zval_ptr_dtor(&parser->endArrayHandler);
 	}
 
-    if ( parser->object )
+	if ( parser->object )
 	{
 		zval_ptr_dtor(&parser->object);
 	}
 
-    efree(parser);
+	efree(parser);
 }
 /* }}} */
 
@@ -259,23 +284,23 @@ PHP_MINIT_FUNCTION(yajl)
 	REGISTER_INI_ENTRIES();
 	*/
 
-    le_yajl_parser = zend_register_list_destructors_ex(yajl_parser_rsrc_dtor, NULL, 
-                                                       "yajl parser", module_number);
+	le_yajl_parser = zend_register_list_destructors_ex(yajl_parser_rsrc_dtor, NULL, 
+													   "yajl parser", module_number);
 
-    REGISTER_LONG_CONSTANT("YAJL_ALLOW_COMMENTS", yajl_allow_comments,
-                                CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("YAJL_ALLOW_COMMENTS", yajl_allow_comments,
+								CONST_CS | CONST_PERSISTENT);
 
-    REGISTER_LONG_CONSTANT("YAJL_DONT_VALIDATE_STRINGS", yajl_dont_validate_strings,
-                                CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("YAJL_DONT_VALIDATE_STRINGS", yajl_dont_validate_strings,
+								CONST_CS | CONST_PERSISTENT);
 
-    REGISTER_LONG_CONSTANT("YAJL_ALLOW_TRAILING_GARBAGE", yajl_allow_trailing_garbage,
-                                CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("YAJL_ALLOW_TRAILING_GARBAGE", yajl_allow_trailing_garbage,
+								CONST_CS | CONST_PERSISTENT);
 
-    REGISTER_LONG_CONSTANT("YAJL_ALLOW_MULTIPLE_VALUES", yajl_allow_multiple_values,
-                                CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("YAJL_ALLOW_MULTIPLE_VALUES", yajl_allow_multiple_values,
+								CONST_CS | CONST_PERSISTENT);
 
-    REGISTER_LONG_CONSTANT("YAJL_ALLOW_PARTIAL_VALUES", yajl_allow_partial_values,
-                                CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("YAJL_ALLOW_PARTIAL_VALUES", yajl_allow_partial_values,
+								CONST_CS | CONST_PERSISTENT);
 
 	return SUCCESS;
 }
@@ -288,24 +313,6 @@ PHP_MSHUTDOWN_FUNCTION(yajl)
 	/* uncomment this line if you have INI entries
 	UNREGISTER_INI_ENTRIES();
 	*/
-	return SUCCESS;
-}
-/* }}} */
-
-/* Remove if there's nothing to do at request start */
-/* {{{ PHP_RINIT_FUNCTION
- */
-PHP_RINIT_FUNCTION(yajl)
-{
-	return SUCCESS;
-}
-/* }}} */
-
-/* Remove if there's nothing to do at request end */
-/* {{{ PHP_RSHUTDOWN_FUNCTION
- */
-PHP_RSHUTDOWN_FUNCTION(yajl)
-{
 	return SUCCESS;
 }
 /* }}} */
@@ -327,55 +334,55 @@ PHP_MINFO_FUNCTION(yajl)
 /* {{{ extension convenience functions */
 static zval *create_resource_zval(long value)
 {
-    zval *ret;
-    TSRMLS_FETCH();
+	zval *ret;
+	TSRMLS_FETCH();
 
-    MAKE_STD_ZVAL(ret);
-    ZVAL_RESOURCE(ret,value);
+	MAKE_STD_ZVAL(ret);
+	ZVAL_RESOURCE(ret,value);
 
-    zend_list_addref(value);
+	zend_list_addref(value);
 
-    return ret;
+	return ret;
 }
 
 static zval *create_bool_zval(int value)
 {
-    zval *ret;
+	zval *ret;
 
-    MAKE_STD_ZVAL(ret);
-    ZVAL_BOOL(ret,value);
+	MAKE_STD_ZVAL(ret);
+	ZVAL_BOOL(ret,value);
 
-    return ret;
+	return ret;
 }
 
 static zval *create_long_zval(long value)
 {
-    zval *ret;
+	zval *ret;
 
-    MAKE_STD_ZVAL(ret);
-    ZVAL_LONG(ret,value);
+	MAKE_STD_ZVAL(ret);
+	ZVAL_LONG(ret,value);
 
-    return ret;
+	return ret;
 }
 
 static zval *create_double_zval(double value)
 {
-    zval *ret;
+	zval *ret;
 
-    MAKE_STD_ZVAL(ret);
-    ZVAL_DOUBLE(ret,value);
+	MAKE_STD_ZVAL(ret);
+	ZVAL_DOUBLE(ret,value);
 
-    return ret;
+	return ret;
 }
 
 static zval *create_string_zval(const char *stringVal, size_t stringLen)
 {
-    zval *ret;
+	zval *ret;
 
-    MAKE_STD_ZVAL(ret);
-    ZVAL_STRINGL(ret,stringVal,stringLen,1);
+	MAKE_STD_ZVAL(ret);
+	ZVAL_STRINGL(ret,stringVal,stringLen,1);
 
-    return ret;
+	return ret;
 }
 /* }}} */
 
@@ -384,28 +391,28 @@ static zval *create_string_zval(const char *stringVal, size_t stringLen)
  */
 static void * yajl_internal_malloc(void *ctx, size_t sz)
 {
-    return emalloc(sz);
+	return emalloc(sz);
 }
 
 static void * yajl_internal_realloc(void *ctx, void * previous,
-                                    size_t sz)
+									size_t sz)
 {
-    return erealloc(previous, sz);
+	return erealloc(previous, sz);
 }
 
 static void yajl_internal_free(void *ctx, void * ptr)
 {
-    efree(ptr);
+	efree(ptr);
 }
 
 /* Not going to use ctx. Set it to NULL.
  */
 static yajl_alloc_funcs alloc_funcs = 
 {
-    .malloc = yajl_internal_malloc,
-    .realloc = yajl_internal_realloc,
-    .free = yajl_internal_free,
-    .ctx = NULL
+	yajl_internal_malloc,
+	yajl_internal_realloc,
+	yajl_internal_free,
+	NULL
 };
 /* }}} */
 
@@ -414,395 +421,395 @@ static yajl_alloc_funcs alloc_funcs =
  */
 static int yajl_null(void *ctx)
 {
-    yajl_parser *parser = (yajl_parser *)ctx;
-    zval *retval, *args[1];
+	yajl_parser *parser = (yajl_parser *)ctx;
+	zval *retval, *args[1];
 
-    if ( parser )
-    {
-        if ( parser->nullHandler )
-        {
-            args[0] = create_resource_zval(parser->index);
+	if ( parser )
+	{
+		if ( parser->nullHandler )
+		{
+			args[0] = create_resource_zval(parser->index);
 
-            if ((retval = yajl_call_handler(parser, parser->nullHandler,1, args)))
-            {
-                zval_ptr_dtor(&retval);
-            }
-        }
-    }
+			if ((retval = yajl_call_handler(parser, parser->nullHandler,1, args)))
+			{
+				zval_ptr_dtor(&retval);
+			}
+		}
+	}
 
-    return 1;
+	return 1;
 }
 
 static int yajl_boolean(void *ctx, int boolVal)
 {
-    yajl_parser *parser = (yajl_parser *)ctx;
-    zval *retval, *args[2];
+	yajl_parser *parser = (yajl_parser *)ctx;
+	zval *retval, *args[2];
 
-    if ( parser )
-    {
-        if ( parser->booleanHandler )
-        {
-            args[0] = create_resource_zval(parser->index);
-            args[1] = create_bool_zval(boolVal);
+	if ( parser )
+	{
+		if ( parser->booleanHandler )
+		{
+			args[0] = create_resource_zval(parser->index);
+			args[1] = create_bool_zval(boolVal);
 
-            if ((retval = yajl_call_handler(parser, parser->booleanHandler,2, args)))
-            {
-                zval_ptr_dtor(&retval);
-            }
-        }
-    }
+			if ((retval = yajl_call_handler(parser, parser->booleanHandler,2, args)))
+			{
+				zval_ptr_dtor(&retval);
+			}
+		}
+	}
 
-    return 1;
+	return 1;
 }
 
 static int yajl_integer(void *ctx, long long integerVal)
 {
-    yajl_parser *parser = (yajl_parser *)ctx;
-    zval *retval, *args[2];
+	yajl_parser *parser = (yajl_parser *)ctx;
+	zval *retval, *args[2];
 
-    TSRMLS_FETCH();
+	TSRMLS_FETCH();
 
-    if ( parser )
-    {
-        if ( parser->numberHandler )
-        {
+	if ( parser )
+	{
+		if ( parser->numberHandler )
+		{
 			if ((long)integerVal != integerVal) /* If truncation would occur, as it
 												   might in 32 bit archs where 'long'
 												   type is 4 bytes in size and a
 												   'long long' is 8 bytes in size,
 												   cause a handler failure */
 			{
-                php_error_docref(NULL TSRMLS_CC, E_WARNING,
-					"integer could not be represented as a php int. Try parsing with 'numbers_are_strings' set to true: e.g., $parser = yajl_parser_create(true).");
+				php_error_docref(NULL TSRMLS_CC, E_WARNING,
+					"integer could not be represented as a php int. Try parsing with 'numbers_are_strings' set to true: e.g., $parser = yajl_parser_create(true)");
 				return 0;
 			}
 
-            args[0] = create_resource_zval(parser->index);
-            args[1] = create_long_zval(integerVal);
+			args[0] = create_resource_zval(parser->index);
+			args[1] = create_long_zval(integerVal);
 
-            if ((retval = yajl_call_handler(parser, parser->numberHandler,2, args)))
-            {
-                zval_ptr_dtor(&retval);
-            }
-        }
-    }
+			if ((retval = yajl_call_handler(parser, parser->numberHandler,2, args)))
+			{
+				zval_ptr_dtor(&retval);
+			}
+		}
+	}
 
-    return 1;
+	return 1;
 }
 
 static int yajl_double(void *ctx, double doubleVal)
 {
-    yajl_parser *parser = (yajl_parser *)ctx;
-    zval *retval, *args[2];
+	yajl_parser *parser = (yajl_parser *)ctx;
+	zval *retval, *args[2];
 
-    if ( parser )
-    {
-        if ( parser->numberHandler )
-        {
-            args[0] = create_resource_zval(parser->index);
-            args[1] = create_double_zval(doubleVal);
+	if ( parser )
+	{
+		if ( parser->numberHandler )
+		{
+			args[0] = create_resource_zval(parser->index);
+			args[1] = create_double_zval(doubleVal);
 
-            if ((retval = yajl_call_handler(parser, parser->numberHandler,2, args)))
-            {
-                zval_ptr_dtor(&retval);
-            }
-        }
-    }
+			if ((retval = yajl_call_handler(parser, parser->numberHandler,2, args)))
+			{
+				zval_ptr_dtor(&retval);
+			}
+		}
+	}
 
-    return 1;
+	return 1;
 }
 
 static int yajl_string(void *ctx, const unsigned char *stringVal, size_t stringLen)
 {
-    yajl_parser *parser = (yajl_parser *)ctx;
-    zval *retval, *args[2];
+	yajl_parser *parser = (yajl_parser *)ctx;
+	zval *retval, *args[2];
 
-    if ( parser )
-    {
-        if ( parser->stringHandler )
-        {
-            args[0] = create_resource_zval(parser->index);
-            args[1] = create_string_zval((const char *)stringVal, stringLen);
+	if ( parser )
+	{
+		if ( parser->stringHandler )
+		{
+			args[0] = create_resource_zval(parser->index);
+			args[1] = create_string_zval((const char *)stringVal, stringLen);
 
-            if ((retval = yajl_call_handler(parser, parser->stringHandler,2, args)))
-            {
-                zval_ptr_dtor(&retval);
-            }
-        }
-    }
+			if ((retval = yajl_call_handler(parser, parser->stringHandler,2, args)))
+			{
+				zval_ptr_dtor(&retval);
+			}
+		}
+	}
 
-    return 1;
+	return 1;
 }
 
 static int yajl_number(void *ctx, const char *numberVal, size_t numberLen)
 {
-    yajl_parser *parser = (yajl_parser *)ctx;
-    zval *retval, *args[2];
+	yajl_parser *parser = (yajl_parser *)ctx;
+	zval *retval, *args[2];
 
-    if ( parser )
-    {
-        if ( parser->numberHandler )
-        {
-            args[0] = create_resource_zval(parser->index);
-            args[1] = create_string_zval((const char *)numberVal, numberLen);
+	if ( parser )
+	{
+		if ( parser->numberHandler )
+		{
+			args[0] = create_resource_zval(parser->index);
+			args[1] = create_string_zval((const char *)numberVal, numberLen);
 
-            if ((retval = yajl_call_handler(parser, parser->numberHandler,2, args)))
-            {
-                zval_ptr_dtor(&retval);
-            }
-        }
-    }
+			if ((retval = yajl_call_handler(parser, parser->numberHandler,2, args)))
+			{
+				zval_ptr_dtor(&retval);
+			}
+		}
+	}
 
-    return 1;
+	return 1;
 }
 
 static int yajl_start_map(void *ctx)
 {
-    yajl_parser *parser = (yajl_parser *)ctx;
-    zval *retval, *args[1];
+	yajl_parser *parser = (yajl_parser *)ctx;
+	zval *retval, *args[1];
 
-    if ( parser )
-    {
-        if ( parser->startMapHandler )
-        {
-            args[0] = create_resource_zval(parser->index);
+	if ( parser )
+	{
+		if ( parser->startMapHandler )
+		{
+			args[0] = create_resource_zval(parser->index);
 
-            if ((retval = yajl_call_handler(parser, parser->startMapHandler,1, args)))
-            {
-                zval_ptr_dtor(&retval);
-            }
-        }
-    }
+			if ((retval = yajl_call_handler(parser, parser->startMapHandler,1, args)))
+			{
+				zval_ptr_dtor(&retval);
+			}
+		}
+	}
 
-    return 1;
+	return 1;
 }
 
 static int yajl_map_key(void *ctx, const unsigned char * key, size_t keyLen)
 {
-    yajl_parser *parser = (yajl_parser *)ctx;
-    zval *retval, *args[2];
+	yajl_parser *parser = (yajl_parser *)ctx;
+	zval *retval, *args[2];
 
-    if ( parser )
-    {
-        if ( parser->mapKeyHandler )
-        {
-            args[0] = create_resource_zval(parser->index);
-            args[1] = create_string_zval((const char *)key, keyLen);
+	if ( parser )
+	{
+		if ( parser->mapKeyHandler )
+		{
+			args[0] = create_resource_zval(parser->index);
+			args[1] = create_string_zval((const char *)key, keyLen);
 
-            if ((retval = yajl_call_handler(parser, parser->mapKeyHandler,2, args)))
-            {
-                zval_ptr_dtor(&retval);
-            }
-        }
-    }
+			if ((retval = yajl_call_handler(parser, parser->mapKeyHandler,2, args)))
+			{
+				zval_ptr_dtor(&retval);
+			}
+		}
+	}
 
-    return 1;
+	return 1;
 }
 
 static int yajl_end_map(void *ctx)
 {
-    yajl_parser *parser = (yajl_parser *)ctx;
-    zval *retval, *args[1];
+	yajl_parser *parser = (yajl_parser *)ctx;
+	zval *retval, *args[1];
 
-    if ( parser )
-    {
-        if ( parser->endMapHandler )
-        {
-            args[0] = create_resource_zval(parser->index);
+	if ( parser )
+	{
+		if ( parser->endMapHandler )
+		{
+			args[0] = create_resource_zval(parser->index);
 
-            if ((retval = yajl_call_handler(parser, parser->endMapHandler,1, args)))
-            {
-                zval_ptr_dtor(&retval);
-            }
-        }
-    }
+			if ((retval = yajl_call_handler(parser, parser->endMapHandler,1, args)))
+			{
+				zval_ptr_dtor(&retval);
+			}
+		}
+	}
 
-    return 1;
+	return 1;
 }
 
 static int yajl_start_array(void *ctx)
 {
-    yajl_parser *parser = (yajl_parser *)ctx;
-    zval *retval, *args[1];
+	yajl_parser *parser = (yajl_parser *)ctx;
+	zval *retval, *args[1];
 
-    if ( parser )
-    {
-        if ( parser->startArrayHandler )
-        {
-            args[0] = create_resource_zval(parser->index);
+	if ( parser )
+	{
+		if ( parser->startArrayHandler )
+		{
+			args[0] = create_resource_zval(parser->index);
 
-            if ((retval = yajl_call_handler(parser, parser->startArrayHandler,1, args)))
-            {
-                zval_ptr_dtor(&retval);
-            }
-        }
-    }
+			if ((retval = yajl_call_handler(parser, parser->startArrayHandler,1, args)))
+			{
+				zval_ptr_dtor(&retval);
+			}
+		}
+	}
 
-    return 1;
+	return 1;
 }
 
 static int yajl_end_array(void *ctx)
 {
-    yajl_parser *parser = (yajl_parser *)ctx;
-    zval *retval, *args[1];
+	yajl_parser *parser = (yajl_parser *)ctx;
+	zval *retval, *args[1];
 
-    if ( parser )
-    {
-        if ( parser->endArrayHandler )
-        {
-            args[0] = create_resource_zval(parser->index);
+	if ( parser )
+	{
+		if ( parser->endArrayHandler )
+		{
+			args[0] = create_resource_zval(parser->index);
 
-            if ((retval = yajl_call_handler(parser, parser->endArrayHandler,1, args)))
-            {
-                zval_ptr_dtor(&retval);
-            }
-        }
-    }
+			if ((retval = yajl_call_handler(parser, parser->endArrayHandler,1, args)))
+			{
+				zval_ptr_dtor(&retval);
+			}
+		}
+	}
 
-    return 1;
+	return 1;
 }
 
 static yajl_callbacks callbacks =
 {
-    .yajl_null = yajl_null,
-    .yajl_boolean = yajl_boolean,
-    .yajl_integer = yajl_integer,
-    .yajl_double = yajl_double,
-    .yajl_number = NULL,
-    .yajl_string = yajl_string,
-    .yajl_start_map = yajl_start_map,
-    .yajl_map_key = yajl_map_key,
-    .yajl_end_map = yajl_end_map,
-    .yajl_start_array = yajl_start_array,
-    .yajl_end_array = yajl_end_array
+	yajl_null,
+	yajl_boolean,
+	yajl_integer,
+	yajl_double,
+	NULL,
+	yajl_string,
+	yajl_start_map,
+	yajl_map_key,
+	yajl_end_map,
+	yajl_start_array,
+	yajl_end_array
 };
 
 static yajl_callbacks numbers_are_strings_callbacks =
 {
-    .yajl_null = yajl_null,
-    .yajl_boolean = yajl_boolean,
-    .yajl_integer = NULL,
-    .yajl_double = NULL,
-    .yajl_number = yajl_number,
-    .yajl_string = yajl_string,
-    .yajl_start_map = yajl_start_map,
-    .yajl_map_key = yajl_map_key,
-    .yajl_end_map = yajl_end_map,
-    .yajl_start_array = yajl_start_array,
-    .yajl_end_array = yajl_end_array
+	yajl_null,
+	yajl_boolean,
+	NULL,
+	NULL,
+	yajl_number,
+	yajl_string,
+	yajl_start_map,
+	yajl_map_key,
+	yajl_end_map,
+	yajl_start_array,
+	yajl_end_array
 };
 /* }}} */
 
 /* {{{ yajl_set_handler() */
 static void yajl_set_handler(zval **handler, zval **data)
 {
-    /* Release any original handler */
-    if ( *handler )
-    {
-        zval_ptr_dtor(handler);
-    }
+	/* Release any original handler */
+	if ( *handler )
+	{
+		zval_ptr_dtor(handler);
+	}
 
-    /* data could point to an array of array($obj,'method') */
-    if (Z_TYPE_PP(data) != IS_ARRAY && Z_TYPE_PP(data) != IS_OBJECT)
-    {
-        convert_to_string_ex(data);
+	/* data could point to an array of array($obj,'method') */
+	if (Z_TYPE_PP(data) != IS_ARRAY && Z_TYPE_PP(data) != IS_OBJECT)
+	{
+		convert_to_string_ex(data);
 
-        if (Z_STRLEN_PP(data) == 0)
-        {
-            *handler = NULL;
-            return;
-        }
-    }
+		if (Z_STRLEN_PP(data) == 0)
+		{
+			*handler = NULL;
+			return;
+		}
+	}
 
-    zval_add_ref(data);
+	zval_add_ref(data);
 
-    *handler = *data;
+	*handler = *data;
 }
 /* }}} */
 
 /* {{{ yajl_call_handler() */
 static zval *yajl_call_handler(yajl_parser *parser, zval *handler,int argc, zval **argv)
 {
-    int i, result;
-    zval ***args;
-    zval *retval;
-    zend_fcall_info fci;
-    zval **method;
-    zval **obj;
+	int i, result;
+	zval ***args;
+	zval *retval;
+	zend_fcall_info fci;
+	zval **method;
+	zval **obj;
 
-    TSRMLS_FETCH();
+	TSRMLS_FETCH();
 
-    if ( parser && handler && ! EG(exception) )
-    {
-        args = safe_emalloc(sizeof(zval **), argc, 0);
-    
-        for (i = 0; i < argc; i++)
-        {
-            args[i] = &argv[i];
-        }
-    
-        fci.size = sizeof(fci);
-        fci.function_table = EG(function_table);
-        fci.function_name = handler;
-        fci.symbol_table = NULL;
-        fci.object_ptr = parser->object;
-        fci.retval_ptr_ptr = &retval;
-        fci.param_count = argc;
-        fci.params = args;
-        fci.no_separation = 0;
+	if ( parser && handler && ! EG(exception) )
+	{
+		args = safe_emalloc(sizeof(zval **), argc, 0);
+	
+		for (i = 0; i < argc; i++)
+		{
+			args[i] = &argv[i];
+		}
+	
+		fci.size = sizeof(fci);
+		fci.function_table = EG(function_table);
+		fci.function_name = handler;
+		fci.symbol_table = NULL;
+		fci.object_ptr = parser->object;
+		fci.retval_ptr_ptr = &retval;
+		fci.param_count = argc;
+		fci.params = args;
+		fci.no_separation = 0;
 
-        result = zend_call_function(&fci, NULL TSRMLS_CC);
+		result = zend_call_function(&fci, NULL TSRMLS_CC);
 
-        if (result == FAILURE)
-        {
-            if (Z_TYPE_P(handler) == IS_STRING)
-            {
-                php_error_docref(NULL TSRMLS_CC, E_WARNING,
-                    "Unable to call handler %s()", Z_STRVAL_P(handler));
-            }
-            else if ( zend_hash_index_find(Z_ARRVAL_P(handler), 0, (void **) &obj)
-                        == SUCCESS
-                     &&
-                      zend_hash_index_find(Z_ARRVAL_P(handler), 1, (void **) &method)
-                        == SUCCESS
-                     &&
-                      Z_TYPE_PP(obj) == IS_OBJECT && Z_TYPE_PP(method) == IS_STRING )
-            {
-                php_error_docref(NULL TSRMLS_CC, E_WARNING,
-                                 "Unable to call handler %s::%s()",
-                                 Z_OBJCE_PP(obj)->name, Z_STRVAL_PP(method));
-            }
-            else
-            {
-                php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unable to call handler");
-            }
-        }
+		if (result == FAILURE)
+		{
+			if (Z_TYPE_P(handler) == IS_STRING)
+			{
+				php_error_docref(NULL TSRMLS_CC, E_WARNING,
+					"Unable to call handler %s()", Z_STRVAL_P(handler));
+			}
+			else if ( zend_hash_index_find(Z_ARRVAL_P(handler), 0, (void **) &obj)
+						== SUCCESS
+					 &&
+					  zend_hash_index_find(Z_ARRVAL_P(handler), 1, (void **) &method)
+						== SUCCESS
+					 &&
+					  Z_TYPE_PP(obj) == IS_OBJECT && Z_TYPE_PP(method) == IS_STRING )
+			{
+				php_error_docref(NULL TSRMLS_CC, E_WARNING,
+								 "Unable to call handler %s::%s()",
+								 Z_OBJCE_PP(obj)->name, Z_STRVAL_PP(method));
+			}
+			else
+			{
+				php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unable to call handler");
+			}
+		}
 
-        for (i = 0; i < argc; i++)
-        {
-            zval_ptr_dtor(args[i]);
-        }
+		for (i = 0; i < argc; i++)
+		{
+			zval_ptr_dtor(args[i]);
+		}
 
-        efree(args);
+		efree(args);
 
-        if (result == FAILURE)
-        {
-            return NULL;
-        }
-        else
-        {
-            return EG(exception) ? NULL : retval;
-        }
-    }
-    else
-    {
-        for (i = 0; i < argc; i++)
-        {
-            zval_ptr_dtor(&argv[i]);
-        }
+		if (result == FAILURE)
+		{
+			return NULL;
+		}
+		else
+		{
+			return EG(exception) ? NULL : retval;
+		}
+	}
+	else
+	{
+		for (i = 0; i < argc; i++)
+		{
+			zval_ptr_dtor(&argv[i]);
+		}
 
-        return NULL;
-    }
+		return NULL;
+	}
 }
 /* }}} */
 
@@ -810,31 +817,31 @@ static zval *yajl_call_handler(yajl_parser *parser, zval *handler,int argc, zval
    Creates a yajl parser resource */
 PHP_FUNCTION(yajl_parser_create)
 {
-    yajl_parser *parser;
-    zend_bool numbers_are_strings = 0;
+	yajl_parser *parser;
+	zend_bool numbers_are_strings = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|b",
-                                &numbers_are_strings) == FAILURE)
-    {
-        return;
-    }
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|b",
+								&numbers_are_strings) == FAILURE)
+	{
+		return;
+	}
 
-    parser = ecalloc(1, sizeof(yajl_parser));
-    if ( numbers_are_strings )
-    {
-        parser->yajl_handle = yajl_alloc(&numbers_are_strings_callbacks,
-                                            &alloc_funcs, parser);
-    }
-    else
-    {
-        parser->yajl_handle = yajl_alloc(&callbacks,
-                                            &alloc_funcs, parser);
-    }
-                                                                    
-    parser->object = NULL;
+	parser = ecalloc(1, sizeof(yajl_parser));
+	if ( numbers_are_strings )
+	{
+		parser->yajl_handle = yajl_alloc(&numbers_are_strings_callbacks,
+											&alloc_funcs, parser);
+	}
+	else
+	{
+		parser->yajl_handle = yajl_alloc(&callbacks,
+											&alloc_funcs, parser);
+	}
+																	
+	parser->object = NULL;
 
-    ZEND_REGISTER_RESOURCE(return_value, parser, le_yajl_parser);
-    parser->index = Z_LVAL_P(return_value);
+	ZEND_REGISTER_RESOURCE(return_value, parser, le_yajl_parser);
+	parser->index = Z_LVAL_P(return_value);
 }
 /* }}} */
 
@@ -842,47 +849,47 @@ PHP_FUNCTION(yajl_parser_create)
    Set options in an yajl parser */
 PHP_FUNCTION(yajl_parser_set_option)
 {
-    yajl_parser *parser;
-    zval *parser_index;
-    long opt, val = 0;
-    
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rl|l",
-                                &parser_index, &opt, &val) == FAILURE)
-    {
-        return;
-    }
+	yajl_parser *parser;
+	zval *parser_index;
+	long opt, val = 0;
+	
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rl|l",
+								&parser_index, &opt, &val) == FAILURE)
+	{
+		return;
+	}
 
-    ZEND_FETCH_RESOURCE(parser, yajl_parser *, &parser_index,
-                            -1, "yajl parser", le_yajl_parser);
+	ZEND_FETCH_RESOURCE(parser, yajl_parser *, &parser_index,
+							-1, "yajl parser", le_yajl_parser);
 
-    switch(opt)
-    {
-        case yajl_allow_comments:
-            break;
-        case yajl_dont_validate_strings:
-            break;
-        case yajl_allow_trailing_garbage:
-            break;
-        case yajl_allow_multiple_values:
-            break;
-        case yajl_allow_partial_values:
-            break;
-        default:
-            php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unknown option");
-            RETURN_FALSE;
-            break;
-    }
+	switch(opt)
+	{
+		case yajl_allow_comments:
+			break;
+		case yajl_dont_validate_strings:
+			break;
+		case yajl_allow_trailing_garbage:
+			break;
+		case yajl_allow_multiple_values:
+			break;
+		case yajl_allow_partial_values:
+			break;
+		default:
+			php_error_docref(NULL TSRMLS_CC, E_WARNING, "Unknown option");
+			RETURN_FALSE;
+			break;
+	}
 
-    if ( yajl_config(parser->yajl_handle, opt, val) == 0 )
-    {
-        php_error_docref(NULL TSRMLS_CC, E_WARNING,
-            "Could not set yajl parser config option %lx to value %ld",
-                                                        opt, val);
+	if ( yajl_config(parser->yajl_handle, opt, val) == 0 )
+	{
+		php_error_docref(NULL TSRMLS_CC, E_WARNING,
+			"Could not set yajl parser config option %lx to value %ld",
+														opt, val);
 
-        RETURN_FALSE;
-    }
+		RETURN_FALSE;
+	}
 
-    RETVAL_TRUE;
+	RETVAL_TRUE;
 }
 /* }}} */
 
@@ -890,27 +897,27 @@ PHP_FUNCTION(yajl_parser_set_option)
    Set an object that will have the callbacks as methods */
 PHP_FUNCTION(yajl_set_object)
 {
-    yajl_parser *parser;
-    zval *parser_index, *mythis;
+	yajl_parser *parser;
+	zval *parser_index, *mythis;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ro", &parser_index, &mythis)
-            == FAILURE)
-    {
-        return;
-    }
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ro", &parser_index, &mythis)
+			== FAILURE)
+	{
+		return;
+	}
 
-    ZEND_FETCH_RESOURCE(parser, yajl_parser *, &parser_index,
-                            -1, "yajl parser", le_yajl_parser);
+	ZEND_FETCH_RESOURCE(parser, yajl_parser *, &parser_index,
+							-1, "yajl parser", le_yajl_parser);
 
-    if ( parser->object )
-    {
-        zval_ptr_dtor(&parser->object);
-    }
+	if ( parser->object )
+	{
+		zval_ptr_dtor(&parser->object);
+	}
 
-    ALLOC_ZVAL(parser->object);
-    MAKE_COPY_ZVAL(&mythis, parser->object);
+	ALLOC_ZVAL(parser->object);
+	MAKE_COPY_ZVAL(&mythis, parser->object);
 
-    RETVAL_TRUE;
+	RETVAL_TRUE;
 }
 /* }}} */
 
@@ -918,21 +925,21 @@ PHP_FUNCTION(yajl_set_object)
    Set a handler to be called when a json 'null' is parsed */
 PHP_FUNCTION(yajl_set_null_handler)
 {
-    yajl_parser *parser;
-    zval *parser_index, **nhdl;
+	yajl_parser *parser;
+	zval *parser_index, **nhdl;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rZ", &parser_index, &nhdl)
-            == FAILURE)
-    {
-        return;
-    }
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rZ", &parser_index, &nhdl)
+			== FAILURE)
+	{
+		return;
+	}
 
-    ZEND_FETCH_RESOURCE(parser, yajl_parser *, &parser_index,
-                            -1, "yajl parser", le_yajl_parser);
+	ZEND_FETCH_RESOURCE(parser, yajl_parser *, &parser_index,
+							-1, "yajl parser", le_yajl_parser);
 
-    yajl_set_handler(&parser->nullHandler, nhdl);
+	yajl_set_handler(&parser->nullHandler, nhdl);
 
-    RETVAL_TRUE;
+	RETVAL_TRUE;
 }
 /* }}} */
 
@@ -940,21 +947,21 @@ PHP_FUNCTION(yajl_set_null_handler)
    Set a handler to be called when a json 'boolean' is parsed */
 PHP_FUNCTION(yajl_set_boolean_handler)
 {
-    yajl_parser *parser;
-    zval *parser_index, **bhdl;
+	yajl_parser *parser;
+	zval *parser_index, **bhdl;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rZ", &parser_index, &bhdl)
-            == FAILURE)
-    {
-        return;
-    }
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rZ", &parser_index, &bhdl)
+			== FAILURE)
+	{
+		return;
+	}
 
-    ZEND_FETCH_RESOURCE(parser, yajl_parser *, &parser_index,
-                            -1, "yajl parser", le_yajl_parser);
+	ZEND_FETCH_RESOURCE(parser, yajl_parser *, &parser_index,
+							-1, "yajl parser", le_yajl_parser);
 
-    yajl_set_handler(&parser->booleanHandler, bhdl);
+	yajl_set_handler(&parser->booleanHandler, bhdl);
 
-    RETVAL_TRUE;
+	RETVAL_TRUE;
 }
 /* }}} */
 
@@ -962,21 +969,21 @@ PHP_FUNCTION(yajl_set_boolean_handler)
    Set a handler to be called when a json number is parsed */
 PHP_FUNCTION(yajl_set_number_handler)
 {
-    yajl_parser *parser;
-    zval *parser_index, **nhdl;
+	yajl_parser *parser;
+	zval *parser_index, **nhdl;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rZ", &parser_index, &nhdl)
-            == FAILURE)
-    {
-        return;
-    }
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rZ", &parser_index, &nhdl)
+			== FAILURE)
+	{
+		return;
+	}
 
-    ZEND_FETCH_RESOURCE(parser, yajl_parser *, &parser_index,
-                            -1, "yajl parser", le_yajl_parser);
+	ZEND_FETCH_RESOURCE(parser, yajl_parser *, &parser_index,
+							-1, "yajl parser", le_yajl_parser);
 
-    yajl_set_handler(&parser->numberHandler, nhdl);
+	yajl_set_handler(&parser->numberHandler, nhdl);
 
-    RETVAL_TRUE;
+	RETVAL_TRUE;
 }
 /* }}} */
 
@@ -984,21 +991,21 @@ PHP_FUNCTION(yajl_set_number_handler)
    Set a handler to be called when a json string is parsed */
 PHP_FUNCTION(yajl_set_string_handler)
 {
-    yajl_parser *parser;
-    zval *parser_index, **shdl;
+	yajl_parser *parser;
+	zval *parser_index, **shdl;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rZ", &parser_index, &shdl)
-            == FAILURE)
-    {
-        return;
-    }
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rZ", &parser_index, &shdl)
+			== FAILURE)
+	{
+		return;
+	}
 
-    ZEND_FETCH_RESOURCE(parser, yajl_parser *, &parser_index,
-                            -1, "yajl parser", le_yajl_parser);
+	ZEND_FETCH_RESOURCE(parser, yajl_parser *, &parser_index,
+							-1, "yajl parser", le_yajl_parser);
 
-    yajl_set_handler(&parser->stringHandler, shdl);
+	yajl_set_handler(&parser->stringHandler, shdl);
 
-    RETVAL_TRUE;
+	RETVAL_TRUE;
 }
 /* }}} */
 
@@ -1006,21 +1013,21 @@ PHP_FUNCTION(yajl_set_string_handler)
    Set a handler to be called when the start of a json map is encountered */
 PHP_FUNCTION(yajl_set_start_map_handler)
 {
-    yajl_parser *parser;
-    zval *parser_index, **smhdl;
+	yajl_parser *parser;
+	zval *parser_index, **smhdl;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rZ", &parser_index, &smhdl)
-            == FAILURE)
-    {
-        return;
-    }
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rZ", &parser_index, &smhdl)
+			== FAILURE)
+	{
+		return;
+	}
 
-    ZEND_FETCH_RESOURCE(parser, yajl_parser *, &parser_index,
-                            -1, "yajl parser", le_yajl_parser);
+	ZEND_FETCH_RESOURCE(parser, yajl_parser *, &parser_index,
+							-1, "yajl parser", le_yajl_parser);
 
-    yajl_set_handler(&parser->startMapHandler, smhdl);
+	yajl_set_handler(&parser->startMapHandler, smhdl);
 
-    RETVAL_TRUE;
+	RETVAL_TRUE;
 }
 /* }}} */
 
@@ -1028,21 +1035,21 @@ PHP_FUNCTION(yajl_set_start_map_handler)
    Set a handler to be called when a map key is encountered */
 PHP_FUNCTION(yajl_set_map_key_handler)
 {
-    yajl_parser *parser;
-    zval *parser_index, **mkhdl;
+	yajl_parser *parser;
+	zval *parser_index, **mkhdl;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rZ", &parser_index, &mkhdl)
-            == FAILURE)
-    {
-        return;
-    }
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rZ", &parser_index, &mkhdl)
+			== FAILURE)
+	{
+		return;
+	}
 
-    ZEND_FETCH_RESOURCE(parser, yajl_parser *, &parser_index,
-                            -1, "yajl parser", le_yajl_parser);
+	ZEND_FETCH_RESOURCE(parser, yajl_parser *, &parser_index,
+							-1, "yajl parser", le_yajl_parser);
 
-    yajl_set_handler(&parser->mapKeyHandler, mkhdl);
+	yajl_set_handler(&parser->mapKeyHandler, mkhdl);
 
-    RETVAL_TRUE;
+	RETVAL_TRUE;
 }
 /* }}} */
 
@@ -1050,21 +1057,21 @@ PHP_FUNCTION(yajl_set_map_key_handler)
    Set a handler to be called when the end of a json map is encountered */
 PHP_FUNCTION(yajl_set_end_map_handler)
 {
-    yajl_parser *parser;
-    zval *parser_index, **emhdl;
+	yajl_parser *parser;
+	zval *parser_index, **emhdl;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rZ", &parser_index, &emhdl)
-            == FAILURE)
-    {
-        return;
-    }
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rZ", &parser_index, &emhdl)
+			== FAILURE)
+	{
+		return;
+	}
 
-    ZEND_FETCH_RESOURCE(parser, yajl_parser *, &parser_index,
-                            -1, "yajl parser", le_yajl_parser);
+	ZEND_FETCH_RESOURCE(parser, yajl_parser *, &parser_index,
+							-1, "yajl parser", le_yajl_parser);
 
-    yajl_set_handler(&parser->endMapHandler, emhdl);
+	yajl_set_handler(&parser->endMapHandler, emhdl);
 
-    RETVAL_TRUE;
+	RETVAL_TRUE;
 }
 /* }}} */
 
@@ -1072,21 +1079,21 @@ PHP_FUNCTION(yajl_set_end_map_handler)
    Set a handler to be called when the start of a json array is encountered */
 PHP_FUNCTION(yajl_set_start_array_handler)
 {
-    yajl_parser *parser;
-    zval *parser_index, **sahdl;
+	yajl_parser *parser;
+	zval *parser_index, **sahdl;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rZ", &parser_index, &sahdl)
-            == FAILURE)
-    {
-        return;
-    }
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rZ", &parser_index, &sahdl)
+			== FAILURE)
+	{
+		return;
+	}
 
-    ZEND_FETCH_RESOURCE(parser, yajl_parser *, &parser_index,
-                            -1, "yajl parser", le_yajl_parser);
+	ZEND_FETCH_RESOURCE(parser, yajl_parser *, &parser_index,
+							-1, "yajl parser", le_yajl_parser);
 
-    yajl_set_handler(&parser->startArrayHandler, sahdl);
+	yajl_set_handler(&parser->startArrayHandler, sahdl);
 
-    RETVAL_TRUE;
+	RETVAL_TRUE;
 }
 /* }}} */
 
@@ -1094,21 +1101,21 @@ PHP_FUNCTION(yajl_set_start_array_handler)
    Set a handler to be called when the end of a json array is encountered */
 PHP_FUNCTION(yajl_set_end_array_handler)
 {
-    yajl_parser *parser;
-    zval *parser_index, **eahdl;
+	yajl_parser *parser;
+	zval *parser_index, **eahdl;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rZ", &parser_index, &eahdl)
-            == FAILURE)
-    {
-        return;
-    }
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rZ", &parser_index, &eahdl)
+			== FAILURE)
+	{
+		return;
+	}
 
-    ZEND_FETCH_RESOURCE(parser, yajl_parser *, &parser_index,
-                            -1, "yajl parser", le_yajl_parser);
+	ZEND_FETCH_RESOURCE(parser, yajl_parser *, &parser_index,
+							-1, "yajl parser", le_yajl_parser);
 
-    yajl_set_handler(&parser->endArrayHandler, eahdl);
+	yajl_set_handler(&parser->endArrayHandler, eahdl);
 
-    RETVAL_TRUE;
+	RETVAL_TRUE;
 }
 /* }}} */
 
@@ -1116,33 +1123,33 @@ PHP_FUNCTION(yajl_set_end_array_handler)
    Parse some json text */
 PHP_FUNCTION(yajl_parse)
 {
-    yajl_parser *parser;
-    zval *parser_index;
-    char *data;
-    int data_len;
-    zend_bool verbose_error = 0;
+	yajl_parser *parser;
+	zval *parser_index;
+	char *data;
+	int data_len;
+	zend_bool verbose_error = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rs|b",
-        &parser_index, &data, &data_len, &verbose_error) == FAILURE)
-    {
-        return;
-    }
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rs|b",
+		&parser_index, &data, &data_len, &verbose_error) == FAILURE)
+	{
+		return;
+	}
 
-    ZEND_FETCH_RESOURCE(parser, yajl_parser *, &parser_index,
-                            -1, "yajl parser", le_yajl_parser);
+	ZEND_FETCH_RESOURCE(parser, yajl_parser *, &parser_index,
+							-1, "yajl parser", le_yajl_parser);
 
-    if ( parser->json_text ) efree(parser->json_text);
+	if ( parser->json_text ) efree(parser->json_text);
 
-    parser->yajl_status = yajl_status_ok;
+	parser->yajl_status = yajl_status_ok;
 
-    /* If a verbose error message is desired, hold onto the current json chunk.
-     */
-    if ( verbose_error ) parser->json_text = (unsigned char *)estrndup(data,data_len);
+	/* If a verbose error message is desired, hold onto the current json chunk.
+	 */
+	if ( verbose_error ) parser->json_text = (unsigned char *)estrndup(data,data_len);
 
-    parser->yajl_status = yajl_parse(parser->yajl_handle,
-                                        (unsigned char *)data, data_len);
+	parser->yajl_status = yajl_parse(parser->yajl_handle,
+										(unsigned char *)data, data_len);
 
-    RETVAL_LONG(parser->yajl_status==yajl_status_ok?1:0);
+	RETVAL_LONG(parser->yajl_status==yajl_status_ok?1:0);
 }
 /* }}} */
 
@@ -1150,20 +1157,20 @@ PHP_FUNCTION(yajl_parse)
    Parse any reamining buffered json text */
 PHP_FUNCTION(yajl_complete_parse)
 {
-    yajl_parser *parser;
-    zval *parser_index;
+	yajl_parser *parser;
+	zval *parser_index;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r", &parser_index) == FAILURE)
-    {
-        return;
-    }
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r", &parser_index) == FAILURE)
+	{
+		return;
+	}
 
-    ZEND_FETCH_RESOURCE(parser, yajl_parser *, &parser_index,
-                            -1, "yajl parser", le_yajl_parser);
+	ZEND_FETCH_RESOURCE(parser, yajl_parser *, &parser_index,
+							-1, "yajl parser", le_yajl_parser);
 
-    parser->yajl_status = yajl_complete_parse(parser->yajl_handle);
+	parser->yajl_status = yajl_complete_parse(parser->yajl_handle);
 
-    RETVAL_LONG(parser->yajl_status==yajl_status_ok?1:0);
+	RETVAL_LONG(parser->yajl_status==yajl_status_ok?1:0);
 }
 /* }}} */
 
@@ -1171,23 +1178,23 @@ PHP_FUNCTION(yajl_complete_parse)
    Free the JSON parser */
 PHP_FUNCTION(yajl_parser_free)
 {
-    zval *parser_index;
-    yajl_parser *parser;
+	zval *parser_index;
+	yajl_parser *parser;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r", &parser_index) == FAILURE)
-    {
-        return;
-    }
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r", &parser_index) == FAILURE)
+	{
+		return;
+	}
 
-    ZEND_FETCH_RESOURCE(parser, yajl_parser *, &parser_index,
-                            -1, "yajl parser", le_yajl_parser);
+	ZEND_FETCH_RESOURCE(parser, yajl_parser *, &parser_index,
+							-1, "yajl parser", le_yajl_parser);
 
-    if (zend_list_delete(parser->index) == FAILURE)
-    {
-        RETURN_FALSE;
-    }
+	if (zend_list_delete(parser->index) == FAILURE)
+	{
+		RETURN_FALSE;
+	}
 
-    RETVAL_TRUE;
+	RETVAL_TRUE;
 }
 /* }}} */
 
@@ -1195,45 +1202,45 @@ PHP_FUNCTION(yajl_parser_free)
    Get the JSON parser's current error string */
 PHP_FUNCTION(yajl_get_error)
 {
-    yajl_parser *parser;
-    zval *parser_index;
-    char *error_str;
+	yajl_parser *parser;
+	zval *parser_index;
+	char *error_str;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r", &parser_index) == FAILURE)
-    {
-        return;
-    }
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r", &parser_index) == FAILURE)
+	{
+		return;
+	}
 
-    ZEND_FETCH_RESOURCE(parser, yajl_parser *, &parser_index,
-                            -1, "yajl parser", le_yajl_parser);
+	ZEND_FETCH_RESOURCE(parser, yajl_parser *, &parser_index,
+							-1, "yajl parser", le_yajl_parser);
 
-    /* The string interpretation of 'yajl_status_ok' is more meaningful than
-     * yajl_get_error()'s 'unknown error'
-     */
-    if ( parser->yajl_status == yajl_status_ok )
-    {
-        error_str = (char *)yajl_status_to_string(parser->yajl_status);
-        RETVAL_STRING(error_str, 1);
-    }
-    else
-    {
-        if ( parser->json_text )
-        {
-            /* Indicates parser was created with verbose flag true. */
-            error_str = (char *)yajl_get_error(parser->yajl_handle, 1,
-                                parser->json_text, strlen((char *)parser->json_text));
-        }
-        else
-        {
-            error_str = (char *)yajl_get_error(parser->yajl_handle, 0, NULL, 0);
-        }
+	/* The string interpretation of 'yajl_status_ok' is more meaningful than
+	 * yajl_get_error()'s 'unknown error'
+	 */
+	if ( parser->yajl_status == yajl_status_ok )
+	{
+		error_str = (char *)yajl_status_to_string(parser->yajl_status);
+		RETVAL_STRING(error_str, 1);
+	}
+	else
+	{
+		if ( parser->json_text )
+		{
+			/* Indicates parser was created with verbose flag true. */
+			error_str = (char *)yajl_get_error(parser->yajl_handle, 1,
+								parser->json_text, strlen((char *)parser->json_text));
+		}
+		else
+		{
+			error_str = (char *)yajl_get_error(parser->yajl_handle, 0, NULL, 0);
+		}
 
-        if ( error_str )
-        {
-            RETVAL_STRING(error_str, 1);
-            yajl_free_error(parser->yajl_handle, (unsigned char *)error_str);
-        }
-    }
+		if ( error_str )
+		{
+			RETVAL_STRING(error_str, 1);
+			yajl_free_error(parser->yajl_handle, (unsigned char *)error_str);
+		}
+	}
 }
 /* }}} */
 
@@ -1241,25 +1248,25 @@ PHP_FUNCTION(yajl_get_error)
    Get the amount of data consumed from the last parsed chunk */
 PHP_FUNCTION(yajl_get_bytes_consumed)
 {
-    yajl_parser *parser;
-    zval *parser_index;
-    long num_bytes_consumed;
+	yajl_parser *parser;
+	zval *parser_index;
+	long num_bytes_consumed;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r", &parser_index) == FAILURE)
-    {
-        return;
-    }
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r", &parser_index) == FAILURE)
+	{
+		return;
+	}
 
-    ZEND_FETCH_RESOURCE(parser, yajl_parser *, &parser_index,
-                            -1, "yajl parser", le_yajl_parser);
+	ZEND_FETCH_RESOURCE(parser, yajl_parser *, &parser_index,
+							-1, "yajl parser", le_yajl_parser);
 
-    /* The string interpretation of 'yajl_status_ok' is more meaningful than
-     * yajl_get_error()'s 'unknown error'
-     */
+	/* The string interpretation of 'yajl_status_ok' is more meaningful than
+	 * yajl_get_error()'s 'unknown error'
+	 */
 
-    num_bytes_consumed = yajl_get_bytes_consumed(parser->yajl_handle);
+	num_bytes_consumed = yajl_get_bytes_consumed(parser->yajl_handle);
 
-    RETVAL_LONG(num_bytes_consumed);
+	RETVAL_LONG(num_bytes_consumed);
 }
 /* }}} */
 
